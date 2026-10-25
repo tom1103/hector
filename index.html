@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hector — Optimiseur de Stock Min / Max Saisonnier</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Polices modernes -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- SheetJS pour lecture/écriture Excel & CSV -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Chart.js pour les visualisations interactives -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <!-- Header / Navigation -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m7.5 4.27 9 5.15"/>
+            <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
+            <path d="m3.3 7 8.7 5 8.7-5"/>
+            <path d="M12 22V12"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>HECTOR</h1>
+          <span class="brand-tag">Supply Chain & Min/Max Saisonnier</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="btn-demo" class="btn btn-secondary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Charger démo
+        </button>
+        <button id="btn-download-template" class="btn btn-secondary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Modèle Excel
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <!-- Zone de dépôt / import -->
+    <section class="upload-section card">
+      <div class="upload-dropzone" id="dropzone">
+        <input type="file" id="file-input" accept=".xlsx, .xls, .csv" style="display: none;">
+        <div class="dropzone-content">
+          <div class="dropzone-icon">
+            <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="12" y1="18" x2="12" y2="12"/>
+              <line x1="9" y1="15" x2="12" y2="12"/>
+              <line x1="15" y1="15" x2="12" y2="12"/>
+            </svg>
+          </div>
+          <h3>Déposez votre fichier d'historique de ventes ici</h3>
+          <p class="dropzone-hint">Formats acceptés : <strong>Excel (.xlsx, .xls)</strong> ou <strong>CSV</strong>. Détection automatique des colonnes.</p>
+          <div class="dropzone-buttons">
+            <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">
+              Parcourir mes fichiers
+            </button>
+          </div>
+          <p id="file-status" class="file-status"></p>
+        </div>
+      </div>
+
+      <!-- Paramètres de calcul -->
+      <div class="settings-panel">
+        <div class="settings-header">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <h4>Paramètres des Politiques de Réapprovisionnement</h4>
+        </div>
+        <div class="settings-grid">
+          <div class="setting-item">
+            <label for="param-lead-time">
+              Délai fournisseur (jours)
+              <span class="tooltip-icon" title="Temps moyen entre l'envoi du bon de commande et la mise en stock">?</span>
+            </label>
+            <div class="input-with-suffix">
+              <input type="number" id="param-lead-time" value="30" min="1" max="365">
+              <span>j</span>
+            </div>
+          </div>
+
+          <div class="setting-item">
+            <label for="param-review-period">
+              Fréquence de commande
+              <span class="tooltip-icon" title="Nombre de jours entre deux réapprovisionnements réguliers">?</span>
+            </label>
+            <div class="input-with-suffix">
+              <input type="number" id="param-review-period" value="15" min="1" max="180">
+              <span>j</span>
+            </div>
+          </div>
+
+          <div class="setting-item">
+            <label for="param-service-level">
+              Niveau de service
+              <span class="tooltip-icon" title="Probabilité de ne pas subir de rupture de stock pendant le cycle">?</span>
+            </label>
+            <select id="param-service-level">
+              <option value="1.28">90 % (Z = 1.28)</option>
+              <option value="1.65" selected>95 % (Z = 1.65 - Standard)</option>
+              <option value="2.05">98 % (Z = 2.05 - Haute dispo)</option>
+              <option value="2.33">99 % (Z = 2.33 - Stratégique)</option>
+            </select>
+          </div>
+
+          <div class="setting-item">
+            <label for="param-seasonality-threshold">
+              Sensibilité saisonnalité
+              <span class="tooltip-icon" title="Écart mini entre pic et creux pour qualifier un produit de saisonnier">?</span>
+            </label>
+            <select id="param-seasonality-threshold">
+              <option value="1.25">Sensible (+25% de pic)</option>
+              <option value="1.4" selected>Standard (+40% de pic)</option>
+              <option value="1.6">Forte saisonnalité (+60%)</option>
+            </select>
+          </div>
+        </div>
+        <div class="settings-footer">
+          <button id="btn-recalculate" class="btn btn-primary btn-sm">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            Recalculer les seuils
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Zone des résultats -->
+    <section id="results-section" class="results-section" style="display: none;">
+      <!-- KPIs synthétiques -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <span class="kpi-title">Articles analysés</span>
+          <span class="kpi-value" id="kpi-total-skus">0</span>
+          <span class="kpi-sub" id="kpi-skus-sub">Références actives</span>
+        </div>
+        <div class="kpi-card highlight-season">
+          <span class="kpi-title">Profils saisonniers</span>
+          <span class="kpi-value" id="kpi-seasonal-count">0</span>
+          <span class="kpi-sub" id="kpi-seasonal-ratio">0% du catalogue</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-title">Demande annuelle globale</span>
+          <span class="kpi-value" id="kpi-total-demand">0</span>
+          <span class="kpi-sub">Unités vendues / an</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-title">Stock tampon moyen (SS)</span>
+          <span class="kpi-value" id="kpi-avg-ss">0</span>
+          <span class="kpi-sub">Unités de sécurité globale</span>
+        </div>
+      </div>
+
+      <!-- Vue détaillée par article -->
+      <div class="detail-container card">
+        <div class="detail-header">
+          <div class="product-selector-wrapper">
+            <label for="product-select">Sélectionner un article :</label>
+            <div class="select-search-row">
+              <select id="product-select" class="product-dropdown"></select>
+              <span id="product-season-badge" class="badge">Saisonnier</span>
+            </div>
+          </div>
+          <div class="export-actions">
+            <button id="btn-export-excel" class="btn btn-success">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+              Exporter en Excel (.xlsx)
+            </button>
+            <button id="btn-export-csv" class="btn btn-secondary">
+              Exporter en CSV
+            </button>
+          </div>
+        </div>
+
+        <!-- Graphique d'évolution annuelle -->
+        <div class="chart-wrapper">
+          <div class="chart-header">
+            <h4>Profil Dynamique du Stock — Min, Max & Demande prévisionnelle</h4>
+            <div class="chart-legend-custom">
+              <span class="legend-pill max-pill">Stock Max (Plafond)</span>
+              <span class="legend-pill min-pill">Stock Min (Point de commande)</span>
+              <span class="legend-pill ss-pill">Stock de Sécurité</span>
+              <span class="legend-pill demand-pill">Ventes prévues</span>
+            </div>
+          </div>
+          <div class="chart-canvas-box">
+            <canvas id="stock-chart"></canvas>
+          </div>
+        </div>
+
+        <!-- Tableau mensuel de l'article -->
+        <div class="table-responsive">
+          <h4>Détail mensuel des paramètres de commande</h4>
+          <table class="data-table" id="product-monthly-table">
+            <thead>
+              <tr>
+                <th>Mois</th>
+                <th>Demande N</th>
+                <th>Coeff. Saison (CS)</th>
+                <th>Demande pendant délai (L)</th>
+                <th>Stock de Sécurité</th>
+                <th class="col-highlight-min">STOCK MIN (Alerte)</th>
+                <th class="col-highlight-max">STOCK MAX (Cible)</th>
+                <th>Lot de réassort</th>
+              </tr>
+            </thead>
+            <tbody id="product-monthly-tbody">
+              <!-- Rempli en JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tableau récapitulatif de tous les articles -->
+      <div class="catalog-summary card">
+        <div class="summary-header">
+          <h4>Synthèse du Catalogue & Seuils Annuels</h4>
+          <input type="text" id="catalog-search" placeholder="Rechercher une référence..." class="search-input">
+        </div>
+        <div class="table-responsive">
+          <table class="data-table" id="all-products-table">
+            <thead>
+              <tr>
+                <th>Référence / Produit</th>
+                <th>Classification</th>
+                <th>Ventes Annuelles</th>
+                <th>Mois Pic</th>
+                <th>Min (Basse saison)</th>
+                <th>Min (Haute saison)</th>
+                <th>Max (Basse saison)</th>
+                <th>Max (Haute saison)</th>
+              </tr>
+            </thead>
+            <tbody id="all-products-tbody">
+              <!-- Rempli en JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Guide méthodologique intégré -->
+    <section class="methodology-section card">
+      <h3>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        Comment Hector calcule vos Min et Max saisonniers ?
+      </h3>
+      <div class="methodology-grid">
+        <div class="method-col">
+          <h5>1. Anticipation du Délai Fournisseur</h5>
+          <p>Une commande passée en mois $M$ doit couvrir les ventes pendant le délai de livraison $L$. Hector projette la consommation sur la fenêtre calendaire réelle pour que le stock arrive <em>avant</em> le pic de saison.</p>
+        </div>
+        <div class="method-col">
+          <h5>2. Stock de Sécurité Dynamique</h5>
+          <p>La formule $SS_m = Z \times \sigma_m \times \sqrt{L}$ adapte la marge de sécurité à la volatilité du mois. En haute saison, le tampon de sécurité augmente proportionnellement au risque d'aléa de vente.</p>
+        </div>
+        <div class="method-col">
+          <h5>3. Point de Commande (Min) & Plafond (Max)</h5>
+          <p>Le <strong>Min</strong> déclenche la commande dès que le stock physique + en-cours atteint la consommation du délai + $SS$. Le <strong>Max</strong> borne la trésorerie en limitant le recomplètement à la fréquence de réassort choisie.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <div class="footer-container">
+      <p><strong>Hector</strong> — Gestionnaire d'Approvisionnement Saisonnier. 100% exécuté dans votre navigateur (aucune donnée envoyée à un serveur tiers).</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
