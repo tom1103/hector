@@ -26,15 +26,15 @@
         <div class="brand-text">
           <div class="brand-title-row">
             <h1>HECTOR</h1>
-            <span class="brand-version">v2.1</span>
+            <span class="brand-version">v2.2 Pro</span>
           </div>
-          <span class="brand-tag">Optimiseur de Stock & Min/Max Saisonnier</span>
+          <span class="brand-tag">Optimiseur de Stock, Ventes Passées & Prévisions Saisonnières</span>
         </div>
       </div>
       <div class="header-actions">
         <button id="btn-demo" class="btn btn-secondary">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          Charger démo
+          Charger démo (5 mois + prévisions)
         </button>
         <button id="btn-download-template" class="btn btn-secondary">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -45,7 +45,7 @@
   </header>
 
   <main class="app-main">
-    <!-- Zone de dépôt / import -->
+    <!-- Zone de dépôt / import & Paramétrage -->
     <section class="upload-section card">
       <div class="upload-dropzone" id="dropzone">
         <input type="file" id="file-input" accept=".xlsx, .xls, .csv, .txt" multiple style="display: none;">
@@ -59,9 +59,9 @@
               <line x1="15" y1="15" x2="12" y2="12"/>
             </svg>
           </div>
-          <h3>Déposez votre ou vos fichiers de ventes ici</h3>
+          <h3>Déposez votre historique de ventes ici</h3>
           <p class="dropzone-hint">
-            Formats : <strong>Excel (.xlsx, .xls)</strong> ou <strong>CSV</strong>. Déposez 1 ou plusieurs fichiers simultanément (ex: fichiers mensuels).<br>
+            Formats : <strong>Excel (.xlsx, .xls)</strong> ou <strong>CSV</strong>. Glissez un ou plusieurs fichiers de ventes (même partiels sur quelques mois).<br>
             <span class="encoding-badge">✓ Encodage auto (UTF-8, Windows-1252, ANSI) & Accents préservés</span>
             <span class="privacy-badge">🔒 100% local en mémoire dans votre navigateur</span>
           </p>
@@ -74,17 +74,17 @@
         </div>
       </div>
 
-      <!-- Paramètres de calcul -->
+      <!-- Paramètres de calcul & Extrapolation -->
       <div class="settings-panel">
         <div class="settings-header">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          <h4>Paramètres des Politiques de Réapprovisionnement</h4>
+          <h4>Politique de Réassort & Facteurs Saisonniers</h4>
         </div>
         <div class="settings-grid">
           <div class="setting-item">
             <label for="param-lead-time">
               Délai fournisseur (jours)
-              <span class="tooltip-icon" title="Temps moyen entre l'envoi du bon de commande et la mise en stock">?</span>
+              <span class="tooltip-icon" title="Temps entre l'envoi du bon de commande et la mise en rayon">?</span>
             </label>
             <div class="input-with-suffix">
               <input type="number" id="param-lead-time" value="7" min="1" max="365">
@@ -104,9 +104,31 @@
           </div>
 
           <div class="setting-item">
+            <label for="param-bf-multiplier">
+              Black Friday (Novembre)
+              <span class="tooltip-icon" title="Coefficient d'extrapolation pour le mois de novembre (ex: 1.20 = +20% de ventes)">?</span>
+            </label>
+            <div class="input-with-suffix">
+              <input type="number" id="param-bf-multiplier" value="1.20" step="0.05" min="0.5" max="5.0">
+              <span>×</span>
+            </div>
+          </div>
+
+          <div class="setting-item">
+            <label for="param-xmas-multiplier">
+              Fêtes / Noël (Décembre)
+              <span class="tooltip-icon" title="Coefficient d'extrapolation pour le mois de décembre (ex: 1.60 = +60% de ventes)">?</span>
+            </label>
+            <div class="input-with-suffix">
+              <input type="number" id="param-xmas-multiplier" value="1.60" step="0.05" min="0.5" max="5.0">
+              <span>×</span>
+            </div>
+          </div>
+
+          <div class="setting-item">
             <label for="param-service-level">
               Niveau de service (Z)
-              <span class="tooltip-icon" title="Protection contre les ruptures de stock pendant le délai">?</span>
+              <span class="tooltip-icon" title="Protection statistique contre les ruptures de stock pendant le délai">?</span>
             </label>
             <select id="param-service-level">
               <option value="1.28">90% (Z = 1.28)</option>
@@ -119,21 +141,21 @@
           <div class="setting-item">
             <label for="param-seasonality-threshold">
               Seuil détection saisonnalité
-              <span class="tooltip-icon" title="Ratio Max/Min des ventes au-dessus duquel l'article est qualifié de saisonnier">?</span>
+              <span class="tooltip-icon" title="Ratio Max/Min au-dessus duquel un produit est qualifié de saisonnier">?</span>
             </label>
             <select id="param-seasonality-threshold">
-              <option value="1.25">Très sensible (> 1.25x)</option>
+              <option value="1.25">Sensible (> 1.25x)</option>
               <option value="1.40" selected>Standard (> 1.40x — Recommandé)</option>
-              <option value="1.60">Prononcée (> 1.60x)</option>
+              <option value="1.60">Prononcé (> 1.60x)</option>
               <option value="2.00">Extrême (> 2.00x)</option>
             </select>
           </div>
         </div>
 
-        <div class="settings-actions">
+        <div class="settings-actions" style="margin-top: 1rem;">
           <button id="btn-recalculate" class="btn btn-primary btn-sm">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-            Recalculer les seuils
+            Recalculer & Actualiser les Extrapolations
           </button>
         </div>
       </div>
@@ -148,15 +170,20 @@
           <span class="kpi-value" id="kpi-total-skus">0</span>
           <span class="kpi-sub" id="kpi-skus-sub">Références actives</span>
         </div>
+        <div class="kpi-card">
+          <span class="kpi-title">Ventes Réelles Passées</span>
+          <span class="kpi-value" id="kpi-actual-demand" style="color: #059669;">0</span>
+          <span class="kpi-sub" id="kpi-actual-months-sub">Déjà vendu (historique)</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-title">Prévisions Annuelles Totales</span>
+          <span class="kpi-value" id="kpi-total-demand" style="color: #2563eb;">0</span>
+          <span class="kpi-sub" id="kpi-forecast-sub">Réel + Extrapolations</span>
+        </div>
         <div class="kpi-card highlight-season">
           <span class="kpi-title">Profils saisonniers</span>
           <span class="kpi-value" id="kpi-seasonal-count">0</span>
           <span class="kpi-sub" id="kpi-seasonal-ratio">0% du catalogue</span>
-        </div>
-        <div class="kpi-card">
-          <span class="kpi-title">Demande annuelle globale</span>
-          <span class="kpi-value" id="kpi-total-demand">0</span>
-          <span class="kpi-sub">Unités vendues / an</span>
         </div>
         <div class="kpi-card">
           <span class="kpi-title">Stock tampon moyen (SS)</span>
@@ -174,11 +201,11 @@
         <div class="view-mode-toggles">
           <button id="toggle-view-sku" class="btn-view-toggle active" data-view="sku">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
-            Regrouper par Référence (Article)
+            Regrouper par Référence (Vue Article & Extrapolations)
           </button>
           <button id="toggle-view-date" class="btn-view-toggle" data-view="date">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            Regrouper par Date / Mois (Calendrier)
+            Regrouper par Date / Mois (Calendrier de Réapprovisionnement)
           </button>
         </div>
       </div>
@@ -191,9 +218,22 @@
         <div class="detail-container card">
           <div class="detail-header">
             <div class="product-selector-wrapper">
-              <label for="product-select">Sélectionner un article :</label>
+              <label for="product-combobox-input">Rechercher et sélectionner un article :</label>
               <div class="select-search-row">
-                <select id="product-select" class="product-dropdown"></select>
+                <!-- Combobox de recherche dynamique d'article -->
+                <div class="combobox-wrapper" id="combobox-wrapper">
+                  <div class="combobox-input-box">
+                    <svg class="combobox-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input type="text" id="product-combobox-input" class="combobox-input" placeholder="🔍 Taper le nom ou la référence..." autocomplete="off">
+                    <button type="button" id="combobox-clear" class="combobox-clear-btn" title="Effacer la saisie">✕</button>
+                    <button type="button" id="combobox-toggle" class="combobox-toggle-btn" title="Afficher toutes les références">▼</button>
+                  </div>
+                  <div class="combobox-dropdown" id="combobox-dropdown" style="display: none;">
+                    <!-- Rempli dynamiquement en JS -->
+                  </div>
+                </div>
+
+                <select id="product-select" class="product-dropdown" style="display: none;"></select>
                 <span id="product-season-badge" class="badge">Saisonnier</span>
               </div>
             </div>
@@ -208,15 +248,21 @@
             </div>
           </div>
 
-          <!-- Graphique d'évolution annuelle -->
+          <!-- Fiche Décisionnelle Produit (Synthèse opérationnelle en clair) -->
+          <div class="decision-brief-card" id="product-decision-brief">
+            <!-- Rempli dynamiquement en JS -->
+          </div>
+
+          <!-- Graphique d'évolution annuelle : Ventes Réelles, Prévisions & Niveaux de Stock -->
           <div class="chart-wrapper">
             <div class="chart-header">
-              <h4>Profil Dynamique du Stock — Min, Max & Demande prévisionnelle</h4>
+              <h4>Profil Dynamique — Ventes Passées (Réelles), Prévisions & Niveaux Min / Max</h4>
               <div class="chart-legend-custom">
-                <span class="legend-pill max-pill">Stock Max (Plafond)</span>
-                <span class="legend-pill min-pill">Stock Min (Point de commande)</span>
-                <span class="legend-pill ss-pill">Stock de Sécurité</span>
-                <span class="legend-pill demand-pill">Ventes prévues</span>
+                <span class="legend-pill max-pill">Stock MAX (Plafond cible)</span>
+                <span class="legend-pill min-pill">Stock MIN (Point de commande)</span>
+                <span class="legend-pill ss-pill">Stock de Sécurité (Inviolable)</span>
+                <span class="legend-pill" style="background: #e0f2fe; color: #0369a1; border-left: 3px solid #0284c7;">Ventes Réelles (Déjà vendu)</span>
+                <span class="legend-pill" style="background: #f5f3ff; color: #6d28d9; border-left: 3px solid #8b5cf6;">Prévisions Extrapolées</span>
               </div>
             </div>
             <div class="chart-canvas-box">
@@ -224,20 +270,21 @@
             </div>
           </div>
 
-          <!-- Tableau mensuel de l'article -->
+          <!-- Tableau mensuel détaillé de l'article -->
           <div class="table-responsive">
-            <h4>Détail mensuel des paramètres de commande pour l'article sélectionné</h4>
+            <h4>Détail mensuel : Historique Réel, Prévisions et Niveaux de Commande</h4>
             <table class="data-table" id="product-monthly-table">
               <thead>
                 <tr>
                   <th>Mois</th>
-                  <th>Demande Prévue</th>
+                  <th>Nature des Données</th>
+                  <th>Ventes (Réelles / Prévues)</th>
                   <th>Coeff. Saison (CS)</th>
-                  <th>Demande délai (L)</th>
-                  <th>Stock de Sécurité</th>
-                  <th class="col-highlight-min">STOCK MIN (Alerte)</th>
-                  <th class="col-highlight-max">STOCK MAX (Cible)</th>
-                  <th>Lot de réassort</th>
+                  <th>Demande Délai (L=7j)</th>
+                  <th>Stock de Sécurité (SS)</th>
+                  <th class="col-highlight-min">STOCK MIN (Point de commande)</th>
+                  <th class="col-highlight-max">STOCK MAX (Plafond réassort)</th>
+                  <th>Lot de Réassort Conseillé</th>
                 </tr>
               </thead>
               <tbody id="product-monthly-tbody">
@@ -259,7 +306,8 @@
                 <tr>
                   <th class="sortable-th" data-sort="sku">Référence / Produit ↕</th>
                   <th class="sortable-th" data-sort="isSeasonal">Classification ↕</th>
-                  <th class="sortable-th" data-sort="annualTotal">Ventes Annuelles ↕</th>
+                  <th class="sortable-th" data-sort="actualTotal">Déjà Vendu (Réel) ↕</th>
+                  <th class="sortable-th" data-sort="annualTotal">Ventes Annuelles Projetées ↕</th>
                   <th class="sortable-th" data-sort="peakMonth">Mois Pic ↕</th>
                   <th>Min (Basse saison)</th>
                   <th class="col-highlight-min">Min (Haute saison)</th>
@@ -283,9 +331,9 @@
           <div class="month-selector-header">
             <div class="month-selector-title">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              <h4>Sélectionnez le mois à réapprovisionner :</h4>
+              <h4>Sélectionnez le mois à commander / réapprovisionner :</h4>
             </div>
-            <span class="month-selector-hint">Cliquez sur un mois pour afficher les commandes de tout le catalogue</span>
+            <span class="month-selector-hint">Cliquez sur un mois pour voir le plan de commande de l'ensemble du magasin</span>
           </div>
 
           <!-- Sélecteur de mois sous forme de pastilles cliquables -->
@@ -299,7 +347,7 @@
           <div class="kpi-card">
             <span class="kpi-title" id="month-kpi-title-demand">Demande prévue ce mois</span>
             <span class="kpi-value" id="month-kpi-demand">0</span>
-            <span class="kpi-sub">Unités totales prévues</span>
+            <span class="kpi-sub" id="month-kpi-type-sub">Unités totales</span>
           </div>
           <div class="kpi-card highlight-min">
             <span class="kpi-title">Stock Min Global du mois</span>
@@ -349,10 +397,11 @@
                 <thead>
                   <tr>
                     <th class="sortable-month-th" data-sort="sku">Référence / Produit ↕</th>
+                    <th class="sortable-month-th" data-sort="nature">Nature ↕</th>
                     <th class="sortable-month-th" data-sort="phase">Phase Saison ↕</th>
-                    <th class="sortable-month-th" data-sort="demand">Demande du Mois ↕</th>
+                    <th class="sortable-month-th" data-sort="demand">Ventes du Mois ↕</th>
                     <th>Coeff. Saison (CS)</th>
-                    <th>Demande Délai (L)</th>
+                    <th>Demande Délai (L=7j)</th>
                     <th>Stock Sécurité (SS)</th>
                     <th class="col-highlight-min sortable-month-th" data-sort="stockMin">STOCK MIN (Alerte) ↕</th>
                     <th class="col-highlight-max sortable-month-th" data-sort="stockMax">STOCK MAX (Cible) ↕</th>
@@ -369,24 +418,107 @@
       </div>
     </section>
 
+    <!-- ===================================================================== -->
+    <!-- SECTION RÉFÉRENTIEL & DÉFINITIONS RIGOUREUSES DES STOCKS -->
+    <!-- ===================================================================== -->
+    <section class="definitions-section card">
+      <div class="definitions-header">
+        <div class="def-header-title">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <h3>Référentiel & Définitions des Niveaux de Stock</h3>
+        </div>
+        <span class="def-header-tag">Standard Supply Chain & Commerce</span>
+      </div>
+
+      <div class="definitions-grid">
+        <!-- Carte 1 : Stock de Sécurité -->
+        <div class="def-card def-card-ss">
+          <div class="def-card-top">
+            <span class="def-badge badge-ss">🛡️ Coussin d'Amortissement</span>
+            <h4>Stock de Sécurité (SS)</h4>
+          </div>
+          <div class="def-formula-box">
+            <code>SS = ⌈ Z × σ_jour × √L ⌉</code>
+          </div>
+          <p class="def-desc">
+            <strong>Rôle :</strong> Réserve de protection <em>inviolable</em> destinée à absorber les deux aléas majeurs de votre commerce : un retard de livraison du fournisseur ou une accélération imprévue des ventes clients pendant le délai de livraison.
+          </p>
+          <div class="def-rule">
+            <strong>⚠️ Règle d'or :</strong> On ne touche jamais au stock de sécurité en situation normale. Si votre stock physique descend dans le SS, vous êtes en situation d'urgence logistique.
+          </div>
+        </div>
+
+        <!-- Carte 2 : Stock Minimum (Point de Commande) -->
+        <div class="def-card def-card-min">
+          <div class="def-card-top">
+            <span class="def-badge badge-min">🚨 Point de Commande (Alerte)</span>
+            <h4>Stock Minimum (Min)</h4>
+          </div>
+          <div class="def-formula-box">
+            <code>Min = Demande Délai (L) + SS</code>
+          </div>
+          <p class="def-desc">
+            <strong>Rôle :</strong> Le <strong>déclencheur impératif de commande</strong>. C'est le niveau précis de stock disponible (stock en rayon + commandes déjà parties chez le fournisseur) à partir duquel vous <em>devez</em> envoyer un bon de commande.
+          </p>
+          <div class="def-rule">
+            <strong>⚡ Règle d'or :</strong> Dès que <code>Stock Disponible ≤ Min</code>, commandez immédiatement. Vos clients consommeront le stock pendant les 7 jours de livraison, et la commande arrivera pile au niveau du Stock de Sécurité.
+          </div>
+        </div>
+
+        <!-- Carte 3 : Stock Maximum (Plafond de Recomplètement) -->
+        <div class="def-card def-card-max">
+          <div class="def-card-top">
+            <span class="def-badge badge-max">🎯 Plafond Financier & Physique</span>
+            <h4>Stock Maximum (Max)</h4>
+          </div>
+          <div class="def-formula-box">
+            <code>Max = Min + Lot Réassort (Ventes × P)</code>
+          </div>
+          <p class="def-desc">
+            <strong>Rôle :</strong> La limite supérieure à <em>ne jamais dépasser</em>. Il représente le stock cible dans votre boutique juste après la réception d'une livraison régulière.
+          </p>
+          <div class="def-rule">
+            <strong>💰 Règle d'or :</strong> Dépasser le Max immobilise inutilement de la trésorerie (cash bloqué), encombre vos réserves et crée du risque d'invendus ou de démarque.
+          </div>
+        </div>
+
+        <!-- Carte 4 : Lot de Réassort -->
+        <div class="def-card def-card-lot">
+          <div class="def-card-top">
+            <span class="def-badge badge-lot">📦 Quantité Économique</span>
+            <h4>Lot de Réassort (Q)</h4>
+          </div>
+          <div class="def-formula-box">
+            <code>Lot = Ventes journalières × Fréquence (P)</code>
+          </div>
+          <p class="def-desc">
+            <strong>Rôle :</strong> Le volume optimal à commander pour couvrir exactement la consommation entre deux révisions régulières (7 jours).
+          </p>
+          <div class="def-rule">
+            <strong>📋 Règle d'or :</strong> <code>Quantité à commander = Max - Stock Réel</code> pour réaligner immédiatement votre réserve sur le plafond optimal.
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Guide méthodologique intégré -->
     <section class="methodology-section card">
       <h3>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-        Comment Hector calcule vos Min et Max saisonniers ?
+        Comment Hector extrapole les ventes futures pour un nouveau commerce ?
       </h3>
       <div class="methodology-grid">
         <div class="method-col">
-          <h5>1. Anticipation du Délai Fournisseur</h5>
-          <p>Une commande passée en mois $M$ doit couvrir les ventes pendant le délai de livraison $L$. Hector projette la consommation sur la fenêtre calendaire réelle pour que le stock arrive <em>avant</em> le pic de saison.</p>
+          <h5>1. Calcul du Rythme Réel de Base</h5>
+          <p>Hector identifie les mois réellement écoulés dans vos fichiers, cumule le "Déjà Vendu" et détermine votre rythme de vente mensuel moyen sans biaiser les calculs avec des mois vides à zéro.</p>
         </div>
         <div class="method-col">
-          <h5>2. Stock de Sécurité Dynamique</h5>
-          <p>La formule $SS_m = Z \times \sigma_m \times \sqrt{L}$ adapte la marge de sécurité à la volatilité du mois. En haute saison, le tampon de sécurité augmente proportionnellement au risque d'aléa de vente.</p>
+          <h5>2. Extrapolation Saisonnière Intelligente</h5>
+          <p>Pour les mois à venir (non encore vécus), Hector applique vos coefficients d'extrapolation configurés : Black Friday en Novembre ($\times 1.20$ soit $+20\%$) et Noël / Fêtes en Décembre ($\times 1.60$ soit $+60\%$).</p>
         </div>
         <div class="method-col">
-          <h5>3. Point de Commande (Min) & Plafond (Max)</h5>
-          <p>Le <strong>Min</strong> déclenche la commande dès que le stock physique + en-cours atteint la consommation du délai + $SS$. Le <strong>Max</strong> borne la trésorerie en limitant le recomplètement à la fréquence de réassort choisie.</p>
+          <h5>3. Dimensionnement du Stock Min/Max</h5>
+          <p>Les seuils Min et Max anticipent la demande sur le délai de 7 jours. Dès octobre, Hector relève automatiquement le Min de novembre pour que vos approvisionnements arrivent <em>avant</em> le pic d'achat.</p>
         </div>
       </div>
     </section>
@@ -394,7 +526,7 @@
 
   <footer class="app-footer">
     <div class="footer-container">
-      <p><strong>Hector</strong> — Optimiseur de Stock & Min/Max Saisonnier. 100% exécuté dans votre navigateur (aucune donnée envoyée à un serveur tiers).</p>
+      <p><strong>Hector v2.2 Pro</strong> — Gestionnaire d'Approvisionnement Saisonnier & Extrapolation Prévisionnelle. 100% exécuté dans votre navigateur (aucune donnée transmise sur internet).</p>
     </div>
   </footer>
 

@@ -878,3 +878,335 @@ body {
   color: #065f46;
   border: 1px solid #a7f3d0;
 }
+
+
+/* ==========================================================================
+   Composant Combobox de Recherche d'Article
+   ========================================================================== */
+.combobox-wrapper {
+  position: relative;
+  min-width: 320px;
+  max-width: 450px;
+  width: 100%;
+}
+
+.combobox-input-box {
+  display: flex;
+  align-items: center;
+  background: white;
+  border: 1.5px solid var(--border-dark);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.65rem;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.combobox-input-box:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.18);
+}
+
+.combobox-search-icon {
+  color: var(--text-muted);
+  margin-right: 0.5rem;
+  flex-shrink: 0;
+}
+
+.combobox-input {
+  border: none;
+  outline: none;
+  width: 100%;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-main);
+  background: transparent;
+  padding: 0.2rem 0;
+}
+
+.combobox-input::placeholder {
+  font-weight: 400;
+  color: #94a3b8;
+}
+
+.combobox-clear-btn, .combobox-toggle-btn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0.2rem 0.35rem;
+  font-size: 0.8rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background 0.15s;
+}
+
+.combobox-clear-btn:hover, .combobox-toggle-btn:hover {
+  color: var(--text-main);
+  background: #f1f5f9;
+}
+
+.combobox-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  max-height: 280px;
+  overflow-y: auto;
+  z-index: 100;
+  padding: 0.35rem;
+}
+
+.combobox-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.combobox-item:hover, .combobox-item.highlighted {
+  background: #f0f9ff;
+}
+
+.combobox-item.selected {
+  background: #e0f2fe;
+  border-left: 3px solid var(--primary);
+}
+
+.combobox-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.combobox-item-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.combobox-item-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.combobox-empty {
+  padding: 1rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* ==========================================================================
+   Badges Nature des Données : Ventes Réelles vs Prévisions
+   ========================================================================== */
+.badge-actual {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+  font-size: 0.725rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.badge-forecast {
+  background: #f5f3ff;
+  color: #6d28d9;
+  border: 1px solid #ddd6fe;
+  font-size: 0.725rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+/* Fiche Décisionnelle Produit */
+.decision-brief-card {
+  background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+  border: 1px solid #cbd5e1;
+  border-left: 5px solid var(--primary);
+  border-radius: var(--radius-md);
+  padding: 1.15rem 1.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.decision-brief-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.decision-brief-header h5 {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.decision-brief-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  font-size: 0.85rem;
+}
+
+.decision-stat strong {
+  color: #0f172a;
+}
+
+.decision-action-box {
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  color: #1e293b;
+  line-height: 1.5;
+}
+
+/* ==========================================================================
+   Section Référentiel & Définitions Rigoureuses des Stocks
+   ========================================================================== */
+.definitions-section {
+  background: #ffffff;
+}
+
+.definitions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.def-header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #0f172a;
+}
+
+.def-header-title h3 {
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.def-header-tag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: #f1f5f9;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+}
+
+.definitions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+
+.def-card {
+  background: #f8fafc;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.def-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.def-card-ss { border-top: 4px solid var(--warning); }
+.def-card-min { border-top: 4px solid var(--danger); }
+.def-card-max { border-top: 4px solid var(--primary); }
+.def-card-lot { border-top: 4px solid var(--success); }
+
+.def-card-top {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.def-card-top h4 {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.def-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  align-self: flex-start;
+}
+
+.badge-ss { background: #fef3c7; color: #92400e; }
+.badge-min { background: #fee2e2; color: #991b1b; }
+.badge-max { background: #dbeafe; color: #1e40af; }
+.badge-lot { background: #d1fae5; color: #065f46; }
+
+.def-formula-box {
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0.45rem 0.65rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.775rem;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.def-desc {
+  font-size: 0.825rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.def-rule {
+  font-size: 0.8rem;
+  line-height: 1.45;
+  background: #ffffff;
+  border-left: 3px solid #64748b;
+  padding: 0.5rem 0.65rem;
+  border-radius: 0 4px 4px 0;
+  color: #1e293b;
+}
+
+.def-card-ss .def-rule { border-left-color: var(--warning); }
+.def-card-min .def-rule { border-left-color: var(--danger); }
+.def-card-max .def-rule { border-left-color: var(--primary); }
+.def-card-lot .def-rule { border-left-color: var(--success); }

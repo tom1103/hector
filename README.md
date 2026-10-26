@@ -1,24 +1,32 @@
 # <img src="logo.svg" width="36" height="36" align="center" alt="Logo Hector" /> HECTOR — Optimiseur de Stock Min / Max Saisonnier
 
-**Hector** est une application web autonome et moderne conçue pour calculer automatiquement les niveaux de réapprovisionnement optimaux (**Stock Min**, **Stock Max**, **Stock de Sécurité**) pour tous vos produits, avec détection intelligente des saisonnalités.
+**Hector** est une application web autonome et moderne conçue pour calculer automatiquement les niveaux de réapprovisionnement optimaux (**Stock Min**, **Stock Max**, **Stock de Sécurité**) pour tous vos produits, avec distinction claire des **ventes passées réelles** et **extrapolations prévisionnelles saisonnières**.
 
 L'application est disponible en ligne sur : **[https://tom1103.github.io/hector/](https://tom1103.github.io/hector/)**
 
 ---
 
-## ✨ Nouveautés de la Version 2.1
+## ✨ Nouveautés Majeures de la Version 2.2 Pro
 
-1. **Logo & Identité Visuelle :**
-   - Logo vectoriel officiel SVG intégré dans l'en-tête et en favicon de navigateur.
-2. **Double Mode d'Analyse (Regroupement Référence vs Date) :**
-   - **📦 Regrouper par Référence (Vue Article) :** Analyse approfondie d'un produit sélectionné sur les 12 mois de l'année, courbe dynamique Chart.js, et tableau de synthèse de tout le catalogue.
-   - **📅 Regrouper par Date / Mois (Vue Calendrier & Plan de Réassort) :** Sélection d'un mois en un clic (Janvier à Décembre avec indicateurs Black Friday, Fêtes, Été). Présentation du plan de commande global pour ce mois, Top 10 des stocks Min/Max, et export direct du bon de commande mensuel.
-3. **Gestion Avancée des Encodages & Préservation des Accents :**
-   - Détection automatique de l'encodage des fichiers déposés : **UTF-8**, **Windows-1252 (ANSI)** ou **ISO-8859-1** (fréquents dans les exports Excel français).
-   - Module anti-mojibake automatique pour restaurer les caractères accentués (`é`, `è`, `à`, `ê`, `î`, `ô`, `ù`, `ç`, `°`, `€`).
-   - Export CSV enrichi du **BOM UTF-8 (`\uFEFF`)** pour une ouverture native et sans corruption dans Microsoft Excel sous Windows.
-4. **Paramétrage Réapprovisionnement Rapide :**
-   - Configuration par défaut calée sur un cycle hebdomadaire : Délai fournisseur de **7 jours** et Fréquence de commande de **7 jours**.
+1. **Ventes Passées ("Déjà Vendu") vs Prévisions Extrapolées :**
+   - Suivi précis des mois réels observés (ex: 5 mois d'historique pour un commerce récent).
+   - Extrapolation mathématique sur les mois futurs à partir du rythme de vente de base et des coefficients saisonniers configurables :
+     - **Black Friday (Novembre) :** $\times 1.20$ (+20% par défaut)
+     - **Fêtes / Noël (Décembre) :** $\times 1.60$ (+60% par défaut)
+   - Visualisation distincte sur les graphiques (barres pleines bleues pour le réel, violettes pour le prévisionnel) et les tableaux (`[🟢 Déjà Vendu]` vs `[🔮 Prévision]`).
+2. **Combobox de Recherche Intelligente d'Articles :**
+   - Champ de saisie dynamique avec autocomplétion instantanée.
+   - Affiche en direct le badge saisonnier et les volumes réels / prévus de chaque référence.
+   - Raccourcis clavier (flèches, Entrée, Échap) et bouton d'effacement rapide.
+3. **Référentiel Supply Chain Rigoureux & Fiche Décisionnelle :**
+   - Section dédiée avec formules mathématiques et règles d'or opérationnelles pour le **Stock de Sécurité ($SS$)**, le **Stock Minimum ($Min$)**, le **Stock Maximum ($Max$)** et le **Lot de Réassort ($Q$)**.
+   - Fiche décisionnelle générée pour chaque article avec consignes en français clair : quand commander, combien commander et quel seuil ne jamais dépasser.
+4. **Double Mode de Regroupement :**
+   - **📦 Vue par Référence :** fiche article 12 mois et synthèse globale du catalogue.
+   - **📅 Vue par Date / Mois :** plan de commande global pour n'importe quel mois de l'année.
+5. **Encodage & Accents Français 100% Garantis :**
+   - Détection automatique UTF-8 / Windows-1252 (ANSI) / ISO-8859-1.
+   - Module anti-mojibake et export CSV avec BOM UTF-8 (`\uFEFF`) pour Excel sous Windows.
 
 ---
 
@@ -27,32 +35,25 @@ L'application est disponible en ligne sur : **[https://tom1103.github.io/hector/
 Hector fonctionne sur **tous les ordinateurs** sans aucune installation :
 1. **En ligne :** Ouvrez simplement [tom1103.github.io/hector](https://tom1103.github.io/hector/).
 2. **En local :** Ouvrez le fichier `index.html` dans n'importe quel navigateur (Chrome, Edge, Firefox, Safari).
-3. Cliquez sur **"Charger démo"** pour visualiser le fonctionnement ou glissez vos propres fichiers de ventes (Excel ou CSV).
+3. Cliquez sur **"Charger démo"** pour tester le cas réel d'un commerce ayant 5 mois d'historique et des extrapolations sur Black Friday et Noël.
 
 ---
 
-## 📐 2. Modèle Mathématique de Calcul
+## 📐 2. Référentiel Mathématique Supply Chain
 
-### A. Détection de la Saisonnalité
-Pour chaque article, Hector calcule le profil mensuel et le ratio d'amplitude :
-$$\text{Ratio} = \frac{\max(\text{Ventes Mensuelles})}{\min(\text{Ventes Mensuelles})}$$
-Si ce ratio dépasse le seuil configuré (par défaut $1{,}40$), le produit est qualifié de **Saisonnier**.
-
-### B. Anticipation du Délai Fournisseur ($L$)
-Une commande passée en mois $M$ doit couvrir les ventes pendant le délai de livraison $L$. Hector projette la consommation sur la fenêtre calendaire réelle pour que le stock arrive *avant* le pic de saison.
-
-### C. Stock de Sécurité Dynamique ($SS_m$)
+### A. Stock de Sécurité Dynamique ($SS_m$)
 $$SS_m = \lceil Z \times \sigma_{\text{jour}, m} \times \sqrt{L} \rceil$$
 - $Z$ : Facteur de niveau de service (par défaut 1,65 pour 95 % de disponibilité).
 - $\sigma_{\text{jour}, m}$ : Écart-type journalier estimé pour le mois $m$.
-- $L$ : Délai de livraison fournisseur en jours.
+- $L$ : Délai de livraison fournisseur en jours (7 jours).
 
-### D. Stock Minimum ($Min_m$ - Point de Commande)
+### B. Stock Minimum ($Min_m$ — Point de Commande)
 $$Min_m = \lceil \text{Consommation Prévue sur le Délai } L + SS_m \rceil$$
+Dès que $\text{Stock Disponible} \le Min_m$, le gestionnaire doit impérativement passer commande.
 
-### E. Stock Maximum ($Max_m$ - Plafond de Recomplètement)
+### C. Stock Maximum ($Max_m$ — Plafond de Recomplètement)
 $$Max_m = Min_m + \text{Lot de Réassort}$$
-où le lot de réassort correspond à la consommation sur la fréquence de commande périodique $P$ (ex: 7 jours).
+où le lot de réassort correspond à la consommation sur la fréquence de commande périodique $P$ (7 jours).
 
 ---
 
