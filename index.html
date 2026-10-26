@@ -67,10 +67,19 @@
           </p>
           <div class="dropzone-buttons">
             <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">
-              Parcourir mes fichiers
+              Parcourir / Ajouter des fichiers
             </button>
           </div>
           <p id="file-status" class="file-status"></p>
+
+          <!-- Panneau de gestion des fichiers mensuels chargés -->
+          <div id="uploaded-files-panel" class="uploaded-files-panel" style="display: none;" onclick="event.stopPropagation()">
+            <div class="uploaded-files-header">
+              <span>📂 <strong>Fichiers mensuels chargés</strong> (vérifiez ou modifiez le mois associé) :</span>
+              <button type="button" id="btn-clear-files" class="btn-clear-all-files" title="Vider tous les fichiers">🗑️ Tout vider</button>
+            </div>
+            <div id="uploaded-files-list" class="uploaded-files-list"></div>
+          </div>
         </div>
       </div>
 
