@@ -1,6 +1,6 @@
 /**
  * HECTOR — Optimiseur de Stock Min/Max Saisonnier
- * Moteur de calcul Supply Chain & Interface Utilisateur
+ * Moteur Supply Chain, Gestion Multi-Encodages (UTF-8 / Windows-1252) & Double Vue (Par Référence / Par Date)
  */
 
 // Mois de l'année en français
@@ -18,7 +18,14 @@ const MONTH_SHORT = [
 const HectorState = {
   products: new Map(), // sku -> ProductData
   selectedSku: null,
+  selectedMonth: 10,   // Novembre par défaut (0-indexed: 10)
+  activeViewMode: 'sku', // 'sku' ou 'date'
   chartInstance: null,
+  monthChartInstance: null,
+  sortConfig: {
+    skuTable: { key: 'sku', asc: true },
+    monthTable: { key: 'demand', asc: false }
+  },
   params: {
     leadTimeDays: 7,
     reviewPeriodDays: 7,
@@ -34,7 +41,9 @@ document.addEventListener("DOMContentLoaded", () => {
   initDropzone();
   initParamListeners();
   initActionButtons();
+  initViewModeToggles();
   initSearch();
+  initSorting();
 });
 
 function initParamListeners() {
@@ -57,33 +66,110 @@ function updateParamsFromUI() {
 }
 
 function initActionButtons() {
-  // Bouton démo
+  // Démo
   document.getElementById("btn-demo").addEventListener("click", loadDemoData);
 
-  // Bouton téléchargement du modèle
+  // Téléchargement modèle Excel
   document.getElementById("btn-download-template").addEventListener("click", downloadExcelTemplate);
 
-  // Sélecteur de produit
+  // Sélecteur de produit (Vue par Référence)
   document.getElementById("product-select").addEventListener("change", (e) => {
     HectorState.selectedSku = e.target.value;
     renderSelectedProduct();
   });
 
-  // Exports
+  // Exports globaux
   document.getElementById("btn-export-excel").addEventListener("click", exportResultsToExcel);
   document.getElementById("btn-export-csv").addEventListener("click", exportResultsToCSV);
+
+  // Exports du mois sélectionné
+  document.getElementById("btn-export-month-excel").addEventListener("click", exportSelectedMonthToExcel);
+  document.getElementById("btn-export-month-csv").addEventListener("click", exportSelectedMonthToCSV);
+}
+
+function initViewModeToggles() {
+  const btnSku = document.getElementById("toggle-view-sku");
+  const btnDate = document.getElementById("toggle-view-date");
+
+  btnSku.addEventListener("click", () => switchViewMode('sku'));
+  btnDate.addEventListener("click", () => switchViewMode('date'));
+}
+
+function switchViewMode(mode) {
+  HectorState.activeViewMode = mode;
+  const btnSku = document.getElementById("toggle-view-sku");
+  const btnDate = document.getElementById("toggle-view-date");
+  const containerSku = document.getElementById("view-mode-sku-container");
+  const containerDate = document.getElementById("view-mode-date-container");
+
+  if (mode === 'sku') {
+    btnSku.classList.add("active");
+    btnDate.classList.remove("active");
+    containerSku.style.display = "block";
+    containerDate.style.display = "none";
+    if (HectorState.chartInstance) HectorState.chartInstance.resize();
+  } else {
+    btnDate.classList.add("active");
+    btnSku.classList.remove("active");
+    containerDate.style.display = "block";
+    containerSku.style.display = "none";
+    renderMonthView();
+    if (HectorState.monthChartInstance) HectorState.monthChartInstance.resize();
+  }
 }
 
 function initSearch() {
+  // Recherche dans le catalogue global
   const searchInput = document.getElementById("catalog-search");
-  searchInput.addEventListener("input", (e) => {
-    const query = e.target.value.toLowerCase().trim();
-    filterSummaryTable(query);
+  if (searchInput) {
+    searchInput.addEventListener("input", (e) => {
+      const query = e.target.value.toLowerCase().trim();
+      filterSummaryTable(query);
+    });
+  }
+
+  // Recherche dans le tableau du mois
+  const monthSearchInput = document.getElementById("month-table-search");
+  if (monthSearchInput) {
+    monthSearchInput.addEventListener("input", (e) => {
+      const query = e.target.value.toLowerCase().trim();
+      filterMonthTable(query);
+    });
+  }
+}
+
+function initSorting() {
+  // Tri tableau catalogue
+  document.querySelectorAll(".sortable-th").forEach(th => {
+    th.addEventListener("click", () => {
+      const sortKey = th.getAttribute("data-sort");
+      if (HectorState.sortConfig.skuTable.key === sortKey) {
+        HectorState.sortConfig.skuTable.asc = !HectorState.sortConfig.skuTable.asc;
+      } else {
+        HectorState.sortConfig.skuTable.key = sortKey;
+        HectorState.sortConfig.skuTable.asc = true;
+      }
+      renderSummaryTable();
+    });
+  });
+
+  // Tri tableau du mois
+  document.querySelectorAll(".sortable-month-th").forEach(th => {
+    th.addEventListener("click", () => {
+      const sortKey = th.getAttribute("data-sort");
+      if (HectorState.sortConfig.monthTable.key === sortKey) {
+        HectorState.sortConfig.monthTable.asc = !HectorState.sortConfig.monthTable.asc;
+      } else {
+        HectorState.sortConfig.monthTable.key = sortKey;
+        HectorState.sortConfig.monthTable.asc = (sortKey === 'sku' || sortKey === 'phase');
+      }
+      renderMonthTable();
+    });
   });
 }
 
 // ==========================================================================
-// 2. Gestion de l'Upload et Drag & Drop
+// 2. Gestion de l'Upload et Multi-Fichiers avec Détection Encodage & Accents
 // ==========================================================================
 function initDropzone() {
   const dropzone = document.getElementById("dropzone");
@@ -123,14 +209,15 @@ function setFileStatus(message, isError = false) {
   statusEl.style.color = isError ? "var(--danger)" : "var(--success)";
 }
 
-// ==========================================================================
-// 3. Analyse et Parsing Multi-Fichiers S?curis? (100% dans le Navigateur)
-// ==========================================================================
+/**
+ * Traitement robuste multi-fichiers avec support complet des accents et encodages français :
+ * Auto-détecte UTF-8 / Windows-1252 (ANSI) / ISO-8859-1 et répare les mojibakes.
+ */
 async function handleUploadedFiles(fileList) {
   const files = Array.from(fileList);
   if (files.length === 0) return;
 
-  setFileStatus(`Lecture de ${files.length} fichier(s) en cours...`);
+  setFileStatus(`Lecture et analyse de ${files.length} fichier(s) en cours...`);
   updateParamsFromUI();
   HectorState.products.clear();
 
@@ -140,13 +227,31 @@ async function handleUploadedFiles(fileList) {
 
   for (const file of files) {
     try {
-      const data = await readFileAsArrayBuffer(file);
-      const workbook = XLSX.read(new Uint8Array(data), { type: 'array' });
+      const buffer = await readFileAsArrayBuffer(file);
+      let workbook;
+
+      const isCsvOrTxt = file.name.endsWith('.csv') || file.name.endsWith('.txt');
+
+      if (isCsvOrTxt) {
+        // Décodage intelligent avec préservation absolue des accents
+        const decodedText = decodeBytesWithEncodingDetection(buffer);
+        // Nettoyage et lecture par SheetJS
+        workbook = XLSX.read(decodedText, { type: 'string' });
+      } else {
+        // Fichier binaire Excel (.xlsx, .xls)
+        workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
+      }
+
       const firstSheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[firstSheetName];
-      const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+      let rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
 
       if (!rawRows || rawRows.length < 2) continue;
+
+      // Nettoyage des cellules textuelles pour garantir l'absence de mojibake
+      rawRows = rawRows.map(row => 
+        row.map(cell => typeof cell === 'string' ? repairMojibake(cell) : cell)
+      );
 
       const fileNameHint = extractMonthFromFileName(file.name);
       processDatasetRows(rawRows, tempAgg, fileNameHint);
@@ -158,7 +263,7 @@ async function handleUploadedFiles(fileList) {
   }
 
   if (tempAgg.size === 0) {
-    setFileStatus(`Erreur lors de l'analyse : aucun produit exploitable d?tect?. ${errors.join(', ')}`, true);
+    setFileStatus(`Erreur : aucun produit exploitable détecté. ${errors.join(', ')}`, true);
     return;
   }
 
@@ -170,16 +275,88 @@ async function handleUploadedFiles(fileList) {
   }
 
   recalculateAll();
-  setFileStatus(`? ${filesParsed} fichier(s) analys?(s) avec succ?s ! ${tempAgg.size} r?f?rences charg?es.`);
+  setFileStatus(`✓ ${filesParsed} fichier(s) analysé(s) avec succès ! ${tempAgg.size} références chargées avec encodage vérifié.`);
 }
 
 function readFileAsArrayBuffer(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => resolve(e.target.result);
-    reader.onerror = () => reject(new Error("Lecture impossible du fichier"));
+    reader.onerror = () => reject(new Error("Lecture du fichier impossible"));
     reader.readAsArrayBuffer(file);
   });
+}
+
+/**
+ * Détecte si le flux d'octets est un UTF-8 valide (ou avec BOM) ou s'il s'agit
+ * de l'encodage Windows-1252 / ANSI traditionnel d'Excel français.
+ */
+function decodeBytesWithEncodingDetection(arrayBuffer) {
+  const uint8 = new Uint8Array(arrayBuffer);
+
+  // 1. Détection BOM UTF-8 (EF BB BF)
+  if (uint8.length >= 3 && uint8[0] === 0xEF && uint8[1] === 0xBB && uint8[2] === 0xBF) {
+    const text = new TextDecoder('utf-8').decode(uint8.subarray(3));
+    return repairMojibake(text);
+  }
+
+  // 2. Tentative de décodage UTF-8 strict
+  try {
+    const utf8Decoder = new TextDecoder('utf-8', { fatal: true });
+    const text = utf8Decoder.decode(uint8);
+    return repairMojibake(text);
+  } catch (e) {
+    // 3. Fallback automatique sur Windows-1252 / ISO-8859-1 (standard exports Excel FR)
+    const winDecoder = new TextDecoder('windows-1252');
+    const text = winDecoder.decode(uint8);
+    return repairMojibake(text);
+  }
+}
+
+/**
+ * Répare les doubles encodages (mojibake) fréquents lors des transferts de fichiers.
+ */
+function repairMojibake(str) {
+  if (!str || typeof str !== 'string') return str;
+
+  // Si motif typique de mojibake UTF-8 interprété comme Latin-1
+  if (/[\u00C2\u00C3]/.test(str)) {
+    try {
+      const bytes = new Uint8Array(str.split('').map(c => c.charCodeAt(0) & 0xFF));
+      const decoded = new TextDecoder('utf-8').decode(bytes);
+      if (!decoded.includes('\uFFFD')) {
+        str = decoded;
+      }
+    } catch(e) {}
+  }
+
+  return str
+    .replace(/\u00C3\u00A9/g, 'é')
+    .replace(/\u00C3\u00A8/g, 'è')
+    .replace(/\u00C3\u00A0/g, 'à')
+    .replace(/\u00C3\u00A2/g, 'â')
+    .replace(/\u00C3\u00AA/g, 'ê')
+    .replace(/\u00C3\u00AE/g, 'î')
+    .replace(/\u00C3\u00AF/g, 'ï')
+    .replace(/\u00C3\u00B4/g, 'ô')
+    .replace(/\u00C3\u00BB/g, 'û')
+    .replace(/\u00C3\u00B9/g, 'ù')
+    .replace(/\u00C3\u00A7/g, 'ç')
+    .replace(/\u00C3\u0089/g, 'É')
+    .replace(/\u00C3\u0088/g, 'È')
+    .replace(/\u00C3\u0080/g, 'À')
+    .replace(/\u00C3\u0082/g, 'Â')
+    .replace(/\u00C3\u008A/g, 'Ê')
+    .replace(/\u00C3\u008E/g, 'Î')
+    .replace(/\u00C3\u0094/g, 'Ô')
+    .replace(/\u00C3\u009B/g, 'Û')
+    .replace(/\u00C3\u0087/g, 'Ç')
+    .replace(/\u00C2\u00B0/g, '°')
+    .replace(/\u00E2\u0082\u00AC/g, '€')
+    .replace(/\u00E2\u0080\u0099/g, "'")
+    .replace(/\u00E2\u0080\u0093/g, '–')
+    .replace(/\u00E2\u0080\u0094/g, '—')
+    .replace(/\u00C2/g, ''); // Espaces insécables orphelins
 }
 
 function extractMonthFromFileName(filename) {
@@ -189,7 +366,7 @@ function extractMonthFromFileName(filename) {
       return m;
     }
   }
-  const mMatch = name.match(/month[_-\s]?(\d{1,2})|mois[_-\s]?(\d{1,2})|m(\d{1,2})/);
+  const mMatch = name.match(/month[_\-\s]?(\d{1,2})|mois[_\-\s]?(\d{1,2})|m(\d{1,2})/);
   if (mMatch) {
     const num = parseInt(mMatch[1] || mMatch[2] || mMatch[3], 10);
     if (num >= 1 && num <= 12) return num - 1;
@@ -197,10 +374,13 @@ function extractMonthFromFileName(filename) {
   return -1;
 }
 
+// ==========================================================================
+// 3. Traitement & Structuration des Données
+// ==========================================================================
 function processDatasetRows(rows, tempAgg, fileNameHint) {
   const headers = rows[0].map(h => String(h || "").trim().toLowerCase());
 
-  // D?tection Format Matrice : 12 colonnes de mois
+  // Détection Format Matrice : 12 colonnes de mois dans les en-têtes
   const monthCols = headers.filter(h =>
     MONTH_NAMES.some(m => h.includes(m.toLowerCase().substring(0, 3)))
   ).length;
@@ -213,7 +393,7 @@ function processDatasetRows(rows, tempAgg, fileNameHint) {
 }
 
 function parseMatrixFormat(rows, headers, tempAgg) {
-  let prodColIdx = headers.findIndex(h => /prod|art|ref|sku|code|designation|dsignation|nom/i.test(h));
+  let prodColIdx = headers.findIndex(h => /prod|art|ref|sku|code|designation|désignation|nom|titre/i.test(h));
   if (prodColIdx === -1) prodColIdx = 0;
 
   const monthColIndices = new Array(12).fill(-1);
@@ -242,25 +422,23 @@ function parseMatrixFormat(rows, headers, tempAgg) {
 }
 
 function parseLineFormat(rows, headers, tempAgg, fileNameHint) {
-  // D?tection colonne produit
-  let prodIdx = headers.findIndex(h => /prod|art|ref|sku|code|designation|dsignation|libell/i.test(h));
+  // Détection colonne produit
+  let prodIdx = headers.findIndex(h => /prod|art|ref|sku|code|designation|désignation|libell|nom/i.test(h));
   if (prodIdx === -1) prodIdx = 0;
 
-  // D?tection colonne quantit? (en ?vitant le Chiffre d'Affaires / Prix / Montant)
+  // Détection colonne quantité (évite le Chiffre d'Affaires / Prix / Montants)
   let qtyIdx = headers.findIndex(h => 
-    (/qte|qt|quant|vent|sales|volume|demande|nombre/i.test(h)) && 
+    (/qte|qté|quant|vent|sales|volume|demande|nombre/i.test(h)) && 
     !(/ca|chiffre|affaires|prix|montant|total|eur|euro|cost|price/i.test(h))
   );
   if (qtyIdx === -1) {
-    // Si pas trouv? par mot-cl? explicite, chercher une colonne num?rique qui n'est pas le CA
     qtyIdx = headers.findIndex(h => /volume|vendu|qte/i.test(h));
     if (qtyIdx === -1) qtyIdx = rows[0].length - 1;
   }
 
-  // D?tection colonne date
-  let dateIdx = headers.findIndex(h => /date|mois|month|periode|priode|jour|day/i.test(h));
+  // Détection colonne date
+  let dateIdx = headers.findIndex(h => /date|mois|month|periode|période|jour|day/i.test(h));
   if (dateIdx === -1) {
-    // Tester sur la ligne 1 si une colonne ressemble ? une date
     for (let col = 0; col < headers.length; col++) {
       if (col === prodIdx || col === qtyIdx) continue;
       if (extractMonthIndex(rows[1] && rows[1][col]) !== -1) {
@@ -282,7 +460,6 @@ function parseLineFormat(rows, headers, tempAgg, fileNameHint) {
     if (dateIdx !== -1 && row[dateIdx] !== undefined) {
       monthIndex = extractMonthIndex(row[dateIdx]);
     }
-    // Si la colonne date n'a pas donn? de r?sultat mais qu'un indice de fichier existe
     if (monthIndex === -1 && fileNameHint !== -1) {
       monthIndex = fileNameHint;
     }
@@ -299,7 +476,7 @@ function extractMonthIndex(rawDate) {
   const str = String(rawDate).trim().toLowerCase();
   if (!str) return -1;
 
-  // 1. D?tection par nom de mois textuel (Janvier..D?cembre)
+  // 1. Détection par nom textuel (Janvier..Décembre)
   for (let m = 0; m < 12; m++) {
     const full = MONTH_NAMES[m].toLowerCase();
     const short = MONTH_SHORT[m].toLowerCase().substring(0, 3);
@@ -308,7 +485,7 @@ function extractMonthIndex(rawDate) {
     }
   }
 
-  // 2. D?tection par regex date stricte (JJ/MM/AAAA ou AAAA-MM-JJ ou JJ-MM-AAAA)
+  // 2. Détection par regex date stricte (JJ/MM/AAAA ou AAAA-MM-JJ ou JJ-MM-AAAA)
   const dateMatch = str.match(/^(\d{1,4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,4})/);
   if (dateMatch) {
     const p1 = parseInt(dateMatch[1], 10);
@@ -320,7 +497,7 @@ function extractMonthIndex(rawDate) {
     if (p2 >= 1 && p2 <= 12) return p2 - 1; // DD/MM/YY
   }
 
-  // 3. D?tection si c'est un num?ro de mois isol? (1 ? 12 ou 01 ? 12)
+  // 3. Détection si numéro de mois isolé (1 à 12 ou 01 à 12)
   if (/^(0?[1-9]|1[0-2])$/.test(str)) {
     return parseInt(str, 10) - 1;
   }
@@ -330,13 +507,13 @@ function extractMonthIndex(rawDate) {
     return rawDate.getMonth();
   }
 
-  // 5. Nombre s?rial Excel (dates entre ~1980 et ~2060 : ~29000 ? 60000)
+  // 5. Nombre sérial Excel (dates entre ~1980 et ~2060 : ~29000 à 60000)
   if (typeof rawDate === "number" && rawDate >= 29000 && rawDate <= 60000) {
     const jsDate = new Date(Math.round((rawDate - 25569) * 86400 * 1000));
     if (!isNaN(jsDate.getTime())) return jsDate.getUTCMonth();
   }
 
-  // ATTENTION : Ne JAMAIS faire new Date(str) pour des nombres bruts (ex: CA, ID) !
+  // Sécurité : Ne jamais faire new Date(str) pour éviter que des montants soient convertis en janvier
   return -1;
 }
 
@@ -357,7 +534,7 @@ function calculateProductStockParameters(product, params) {
   // Classification du produit
   const isSeasonal = ratioSeason >= params.seasonalityRatioThreshold && annualTotal > 0;
 
-  // Mois pic et mois creux
+  // Mois pic et creux
   const peakIdx = seasonalIndices.indexOf(maxCS);
   const lowIdx = seasonalIndices.indexOf(minCS);
 
@@ -372,7 +549,6 @@ function calculateProductStockParameters(product, params) {
     const dailyDemand = currentMonthDemand / 30;
 
     // Anticipation de la demande sur la fenêtre du Délai de Réapprovisionnement L
-    // On projette sur les mois à venir pour capturer la montée vers le pic
     let leadTimeDemand = 0;
     let daysRemainingInLeadTime = L;
     let currentScanMonth = m;
@@ -386,8 +562,6 @@ function calculateProductStockParameters(product, params) {
     }
 
     // Incertitude & Écart-type journalier de la demande
-    // Modélisation robuste : proportionnelle à la racine de la demande (Loi de Poisson/Normale en gestion de stock)
-    // Plus la demande est forte, plus la dispersion absolue augmente
     const sigmaDay = Math.sqrt(Math.max(1, dailyDemand * 1.5));
 
     // Stock de sécurité : SS = Z * sigma_jour * sqrt(L)
@@ -402,6 +576,13 @@ function calculateProductStockParameters(product, params) {
     // Seuil Max = Min + Lot de réassort
     const stockMax = stockMin + Math.max(1, reorderLot);
 
+    // Phase saisonnière du mois
+    let phase = 'normal';
+    if (isSeasonal) {
+      if (m === peakIdx || seasonalIndices[m] >= 1.3) phase = 'peak';
+      else if (m === lowIdx || seasonalIndices[m] <= 0.7) phase = 'low';
+    }
+
     calculations.push({
       monthIndex: m,
       monthName: MONTH_NAMES[m],
@@ -411,9 +592,14 @@ function calculateProductStockParameters(product, params) {
       safetyStock: safetyStock,
       stockMin: stockMin,
       stockMax: stockMax,
-      reorderLot: reorderLot
+      reorderLot: reorderLot,
+      phase: phase
     });
   }
+
+  // Min / Max en basse et haute saison
+  const allMins = calculations.map(c => c.stockMin);
+  const allMaxs = calculations.map(c => c.stockMax);
 
   return {
     ...product,
@@ -423,6 +609,10 @@ function calculateProductStockParameters(product, params) {
     isSeasonal: isSeasonal,
     peakMonth: MONTH_NAMES[peakIdx],
     lowMonth: MONTH_NAMES[lowIdx],
+    minLowSeason: Math.min(...allMins),
+    minHighSeason: Math.max(...allMins),
+    maxLowSeason: Math.min(...allMaxs),
+    maxHighSeason: Math.max(...allMaxs),
     calculations: calculations
   };
 }
@@ -435,7 +625,6 @@ function recalculateAll() {
     HectorState.products.set(sku, computed);
   }
 
-  // Mettre à jour l'article sélectionné
   if (!HectorState.selectedSku || !HectorState.products.has(HectorState.selectedSku)) {
     HectorState.selectedSku = HectorState.products.keys().next().value;
   }
@@ -444,16 +633,23 @@ function recalculateAll() {
 }
 
 // ==========================================================================
-// 5. Rendu Visuel (Interface, Tableau, Graphique Chart.js)
+// 5. Rendu Visuel : KPIs, Vues Référence & Date
 // ==========================================================================
 function renderUI() {
-  document.getElementById("results-section").style.display = "flex";
-  document.getElementById("results-section").style.flexDirection = "column";
+  const resultsSection = document.getElementById("results-section");
+  resultsSection.style.display = "flex";
+  resultsSection.style.flexDirection = "column";
 
   renderKPIs();
-  renderProductSelector();
-  renderSelectedProduct();
-  renderSummaryTable();
+  renderMonthChips();
+
+  if (HectorState.activeViewMode === 'sku') {
+    renderProductSelector();
+    renderSelectedProduct();
+    renderSummaryTable();
+  } else {
+    renderMonthView();
+  }
 }
 
 function renderKPIs() {
@@ -462,7 +658,6 @@ function renderKPIs() {
   const seasonalCount = products.filter(p => p.isSeasonal).length;
   const totalDemand = products.reduce((sum, p) => sum + p.annualTotal, 0);
 
-  // Moyenne des stocks de sécurité de tous les produits
   let totalSS = 0;
   products.forEach(p => {
     p.calculations.forEach(c => totalSS += c.safetyStock);
@@ -476,6 +671,9 @@ function renderKPIs() {
   document.getElementById("kpi-avg-ss").textContent = avgSS.toLocaleString("fr-FR");
 }
 
+// --------------------------------------------------------------------------
+// 5.A VUE REGROUPÉE PAR RÉFÉRENCE (ARTICLE)
+// --------------------------------------------------------------------------
 function renderProductSelector() {
   const select = document.getElementById("product-select");
   select.innerHTML = "";
@@ -493,110 +691,95 @@ function renderSelectedProduct() {
   const prod = HectorState.products.get(HectorState.selectedSku);
   if (!prod) return;
 
-  // Badge saisonnalité
   const badge = document.getElementById("product-season-badge");
   if (prod.isSeasonal) {
     badge.textContent = `⚡ Saisonnier (Pic en ${prod.peakMonth})`;
     badge.className = "badge badge-seasonal";
   } else {
-    badge.textContent = "◆ Consommation Stable";
+    badge.textContent = "◆ Profil Régulier";
     badge.className = "badge badge-stable";
   }
 
-  // Tableau mensuel
-  const tbody = document.getElementById("product-monthly-tbody");
-  tbody.innerHTML = "";
-
-  prod.calculations.forEach(row => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td><strong>${row.monthName}</strong></td>
-      <td>${row.demand.toLocaleString("fr-FR")}</td>
-      <td>${row.seasonalIndex.toFixed(2)}</td>
-      <td>${row.leadTimeDemand.toLocaleString("fr-FR")}</td>
-      <td>${row.safetyStock.toLocaleString("fr-FR")}</td>
-      <td class="col-highlight-min">${row.stockMin.toLocaleString("fr-FR")}</td>
-      <td class="col-highlight-max">${row.stockMax.toLocaleString("fr-FR")}</td>
-      <td>+${row.reorderLot.toLocaleString("fr-FR")}</td>
-    `;
-    tbody.appendChild(tr);
-  });
-
-  // Graphique
-  renderChart(prod);
+  renderStockChart(prod);
+  renderProductMonthlyTable(prod);
 }
 
-function renderChart(prod) {
+function renderStockChart(prod) {
   const ctx = document.getElementById("stock-chart").getContext("2d");
-
-  const labels = MONTH_SHORT;
-  const maxData = prod.calculations.map(c => c.stockMax);
-  const minData = prod.calculations.map(c => c.stockMin);
-  const ssData = prod.calculations.map(c => c.safetyStock);
-  const demandData = prod.calculations.map(c => c.demand);
+  const labels = MONTH_NAMES;
+  const dataDemand = prod.calculations.map(c => c.demand);
+  const dataMin = prod.calculations.map(c => c.stockMin);
+  const dataMax = prod.calculations.map(c => c.stockMax);
+  const dataSS = prod.calculations.map(c => c.safetyStock);
 
   if (HectorState.chartInstance) {
     HectorState.chartInstance.destroy();
   }
 
   HectorState.chartInstance = new Chart(ctx, {
-    type: 'line',
+    type: 'bar',
     data: {
       labels: labels,
       datasets: [
         {
-          label: 'Stock Max (Plafond)',
-          data: maxData,
+          label: 'Stock MAX (Plafond réassort)',
+          data: dataMax,
+          type: 'line',
           borderColor: '#2563eb',
           backgroundColor: 'rgba(37, 99, 235, 0.08)',
           fill: '+1',
           borderWidth: 2.5,
-          tension: 0.3,
-          pointRadius: 4
+          tension: 0.25,
+          pointBackgroundColor: '#2563eb',
+          pointRadius: 4,
+          order: 1
         },
         {
-          label: 'Stock Min (Seuil de commande)',
-          data: minData,
+          label: 'Stock MIN (Point de commande)',
+          data: dataMin,
+          type: 'line',
           borderColor: '#dc2626',
-          backgroundColor: 'rgba(220, 38, 38, 0.08)',
+          backgroundColor: 'rgba(220, 38, 38, 0.06)',
           fill: '+1',
           borderWidth: 2.5,
-          tension: 0.3,
-          pointRadius: 4
+          tension: 0.25,
+          pointBackgroundColor: '#dc2626',
+          pointRadius: 4,
+          order: 2
         },
         {
-          label: 'Stock de Sécurité',
-          data: ssData,
+          label: 'Stock de Sécurité (Tampon)',
+          data: dataSS,
+          type: 'line',
           borderColor: '#f59e0b',
-          borderDash: [5, 4],
           borderWidth: 2,
-          tension: 0.3,
-          pointRadius: 3
+          borderDash: [5, 4],
+          pointBackgroundColor: '#f59e0b',
+          pointRadius: 3,
+          fill: false,
+          order: 3
         },
         {
-          label: 'Ventes Mensuelles Prévues',
-          data: demandData,
-          borderColor: '#94a3b8',
-          borderWidth: 1.5,
-          borderDash: [2, 2],
-          tension: 0.2,
-          pointRadius: 2
+          label: 'Ventes Prévues du Mois',
+          data: dataDemand,
+          type: 'bar',
+          backgroundColor: 'rgba(148, 163, 184, 0.45)',
+          hoverBackgroundColor: 'rgba(100, 116, 139, 0.7)',
+          borderRadius: 4,
+          order: 4
         }
       ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      interaction: {
-        mode: 'index',
-        intersect: false
-      },
+      interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
         tooltip: {
           backgroundColor: '#0f172a',
-          titleFont: { family: 'Inter', weight: 'bold' },
-          bodyFont: { family: 'Inter' },
+          titleFont: { family: 'Inter', size: 13, weight: 'bold' },
+          bodyFont: { family: 'Inter', size: 12 },
           padding: 10,
           cornerRadius: 6
         }
@@ -604,15 +787,35 @@ function renderChart(prod) {
       scales: {
         y: {
           beginAtZero: true,
-          grid: { color: '#e2e8f0' },
-          ticks: { font: { family: 'JetBrains Mono' } }
+          grid: { color: '#f1f5f9' },
+          ticks: { font: { family: 'Inter', size: 11 } }
         },
         x: {
           grid: { display: false },
-          ticks: { font: { family: 'Inter', weight: '600' } }
+          ticks: { font: { family: 'Inter', size: 11 } }
         }
       }
     }
+  });
+}
+
+function renderProductMonthlyTable(prod) {
+  const tbody = document.getElementById("product-monthly-tbody");
+  tbody.innerHTML = "";
+
+  prod.calculations.forEach(calc => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><strong>${calc.monthName}</strong></td>
+      <td>${calc.demand.toLocaleString("fr-FR")}</td>
+      <td>${calc.seasonalIndex.toFixed(2)}</td>
+      <td>${calc.leadTimeDemand.toLocaleString("fr-FR")}</td>
+      <td>${calc.safetyStock.toLocaleString("fr-FR")}</td>
+      <td class="col-highlight-min"><strong>${calc.stockMin.toLocaleString("fr-FR")}</strong></td>
+      <td class="col-highlight-max"><strong>${calc.stockMax.toLocaleString("fr-FR")}</strong></td>
+      <td>${calc.reorderLot.toLocaleString("fr-FR")}</td>
+    `;
+    tbody.appendChild(tr);
   });
 }
 
@@ -620,33 +823,30 @@ function renderSummaryTable() {
   const tbody = document.getElementById("all-products-tbody");
   tbody.innerHTML = "";
 
-  HectorState.products.forEach(prod => {
-    const mins = prod.calculations.map(c => c.stockMin);
-    const maxs = prod.calculations.map(c => c.stockMax);
-    const minLow = Math.min(...mins);
-    const minHigh = Math.max(...mins);
-    const maxLow = Math.min(...maxs);
-    const maxHigh = Math.max(...maxs);
+  let products = Array.from(HectorState.products.values());
+  const { key, asc } = HectorState.sortConfig.skuTable;
 
+  products.sort((a, b) => {
+    let valA = a[key];
+    let valB = b[key];
+    if (typeof valA === 'string') {
+      return asc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+    }
+    return asc ? (valA - valB) : (valB - valA);
+  });
+
+  products.forEach(p => {
     const tr = document.createElement("tr");
-    tr.setAttribute("data-sku", prod.sku.toLowerCase());
     tr.innerHTML = `
-      <td><strong>${prod.sku}</strong></td>
-      <td>${prod.isSeasonal ? '<span class="badge badge-seasonal">Saisonnier</span>' : '<span class="badge badge-stable">Stable</span>'}</td>
-      <td>${prod.annualTotal.toLocaleString("fr-FR")}</td>
-      <td>${prod.peakMonth}</td>
-      <td>${minLow.toLocaleString("fr-FR")}</td>
-      <td class="col-highlight-min">${minHigh.toLocaleString("fr-FR")}</td>
-      <td>${maxLow.toLocaleString("fr-FR")}</td>
-      <td class="col-highlight-max">${maxHigh.toLocaleString("fr-FR")}</td>
+      <td><strong>${p.sku}</strong></td>
+      <td>${p.isSeasonal ? '<span class="badge badge-seasonal">Saisonnier</span>' : '<span class="badge badge-stable">Stable</span>'}</td>
+      <td>${p.annualTotal.toLocaleString("fr-FR")}</td>
+      <td><strong>${p.peakMonth}</strong></td>
+      <td>${p.minLowSeason.toLocaleString("fr-FR")}</td>
+      <td class="col-highlight-min">${p.minHighSeason.toLocaleString("fr-FR")}</td>
+      <td>${p.maxLowSeason.toLocaleString("fr-FR")}</td>
+      <td class="col-highlight-max">${p.maxHighSeason.toLocaleString("fr-FR")}</td>
     `;
-    tr.style.cursor = "pointer";
-    tr.addEventListener("click", () => {
-      HectorState.selectedSku = prod.sku;
-      document.getElementById("product-select").value = prod.sku;
-      renderSelectedProduct();
-      window.scrollTo({ top: document.querySelector(".detail-container").offsetTop - 80, behavior: 'smooth' });
-    });
     tbody.appendChild(tr);
   });
 }
@@ -654,7 +854,205 @@ function renderSummaryTable() {
 function filterSummaryTable(query) {
   const rows = document.querySelectorAll("#all-products-tbody tr");
   rows.forEach(r => {
-    const sku = r.getAttribute("data-sku") || "";
+    const sku = r.children[0].textContent.toLowerCase();
+    r.style.display = sku.includes(query) ? "" : "none";
+  });
+}
+
+// --------------------------------------------------------------------------
+// 5.B VUE REGROUPÉE PAR DATE / MOIS (CALENDRIER)
+// --------------------------------------------------------------------------
+function renderMonthChips() {
+  const container = document.getElementById("month-chips-container");
+  container.innerHTML = "";
+
+  MONTH_NAMES.forEach((name, m) => {
+    const chip = document.createElement("div");
+    chip.className = `month-chip ${m === HectorState.selectedMonth ? 'active' : ''}`;
+    
+    // Détection d'indicateurs visuels de saisonnalité
+    let badgeText = "";
+    if (m === 10) badgeText = "🔥 Black Friday";
+    else if (m === 11) badgeText = "🎄 Fêtes";
+    else if (m === 6 || m === 7) badgeText = "☀️ Été";
+    else if (m === 8) badgeText = "🎒 Rentrée";
+
+    chip.innerHTML = `
+      <span class="month-chip-name">${name}</span>
+      <span class="month-chip-sub">${badgeText || `Mois ${m + 1}`}</span>
+    `;
+
+    chip.addEventListener("click", () => {
+      HectorState.selectedMonth = m;
+      document.querySelectorAll(".month-chip").forEach(c => c.classList.remove("active"));
+      chip.classList.add("active");
+      renderMonthView();
+    });
+
+    container.appendChild(chip);
+  });
+}
+
+function renderMonthView() {
+  const m = HectorState.selectedMonth;
+  const monthName = MONTH_NAMES[m];
+
+  // Titres dynamiques
+  document.getElementById("month-kpi-title-demand").textContent = `Demande prévue en ${monthName}`;
+  document.getElementById("month-chart-title").textContent = `Top 10 Références — Min & Max en ${monthName}`;
+  document.getElementById("month-table-title").textContent = `Plan de Commande & Paramètres de Stock — ${monthName}`;
+
+  renderMonthKPIs(m);
+  renderMonthChart(m);
+  renderMonthTable(m);
+}
+
+function renderMonthKPIs(m) {
+  const products = Array.from(HectorState.products.values());
+  let totalDemand = 0;
+  let totalMin = 0;
+  let totalMax = 0;
+  let peakCount = 0;
+
+  products.forEach(p => {
+    const calc = p.calculations[m];
+    totalDemand += calc.demand;
+    totalMin += calc.stockMin;
+    totalMax += calc.stockMax;
+    if (calc.phase === 'peak') peakCount++;
+  });
+
+  document.getElementById("month-kpi-demand").textContent = totalDemand.toLocaleString("fr-FR");
+  document.getElementById("month-kpi-min").textContent = totalMin.toLocaleString("fr-FR");
+  document.getElementById("month-kpi-max").textContent = totalMax.toLocaleString("fr-FR");
+  document.getElementById("month-kpi-peaks").textContent = peakCount.toLocaleString("fr-FR");
+  document.getElementById("month-kpi-peaks-sub").textContent = `${peakCount} référence(s) en tension ce mois-ci`;
+}
+
+function renderMonthChart(m) {
+  const ctx = document.getElementById("month-stock-chart").getContext("2d");
+  const products = Array.from(HectorState.products.values());
+
+  // Top 10 articles classés par volume de stock Min
+  const top10 = products
+    .map(p => ({ sku: p.sku, ...p.calculations[m] }))
+    .sort((a, b) => b.stockMin - a.stockMin)
+    .slice(0, 10);
+
+  const labels = top10.map(item => item.sku.length > 22 ? item.sku.substring(0, 20) + '…' : item.sku);
+  const dataMin = top10.map(item => item.stockMin);
+  const dataMax = top10.map(item => item.stockMax);
+  const dataDemand = top10.map(item => item.demand);
+
+  if (HectorState.monthChartInstance) {
+    HectorState.monthChartInstance.destroy();
+  }
+
+  HectorState.monthChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Stock MAX (Cible)',
+          data: dataMax,
+          backgroundColor: 'rgba(37, 99, 235, 0.85)',
+          borderRadius: 4
+        },
+        {
+          label: 'Stock MIN (Alerte)',
+          data: dataMin,
+          backgroundColor: 'rgba(220, 38, 38, 0.85)',
+          borderRadius: 4
+        },
+        {
+          label: 'Demande Prévue',
+          data: dataDemand,
+          backgroundColor: 'rgba(148, 163, 184, 0.65)',
+          borderRadius: 4
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top',
+          labels: { font: { family: 'Inter', size: 11, weight: 'bold' } }
+        },
+        tooltip: {
+          backgroundColor: '#0f172a',
+          cornerRadius: 6,
+          padding: 10
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: { color: '#f1f5f9' },
+          ticks: { font: { family: 'Inter', size: 11 } }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { font: { family: 'Inter', size: 11 } }
+        }
+      }
+    }
+  });
+}
+
+function renderMonthTable(m = HectorState.selectedMonth) {
+  const tbody = document.getElementById("month-products-tbody");
+  tbody.innerHTML = "";
+
+  const products = Array.from(HectorState.products.values());
+  const rows = products.map(p => ({
+    sku: p.sku,
+    isSeasonal: p.isSeasonal,
+    ...p.calculations[m]
+  }));
+
+  const { key, asc } = HectorState.sortConfig.monthTable;
+  rows.sort((a, b) => {
+    let valA = a[key];
+    let valB = b[key];
+    if (typeof valA === 'string') {
+      return asc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+    }
+    return asc ? (valA - valB) : (valB - valA);
+  });
+
+  rows.forEach(r => {
+    const tr = document.createElement("tr");
+
+    let phaseHtml = '<span class="phase-badge phase-normal">⚖️ Normal</span>';
+    if (r.phase === 'peak') {
+      phaseHtml = '<span class="phase-badge phase-peak">🔥 Pic Saison</span>';
+    } else if (r.phase === 'low') {
+      phaseHtml = '<span class="phase-badge phase-low">❄️ Creux</span>';
+    }
+
+    tr.innerHTML = `
+      <td><strong>${r.sku}</strong></td>
+      <td>${phaseHtml}</td>
+      <td>${r.demand.toLocaleString("fr-FR")}</td>
+      <td>${r.seasonalIndex.toFixed(2)}</td>
+      <td>${r.leadTimeDemand.toLocaleString("fr-FR")}</td>
+      <td>${r.safetyStock.toLocaleString("fr-FR")}</td>
+      <td class="col-highlight-min"><strong>${r.stockMin.toLocaleString("fr-FR")}</strong></td>
+      <td class="col-highlight-max"><strong>${r.stockMax.toLocaleString("fr-FR")}</strong></td>
+      <td><strong>${r.reorderLot.toLocaleString("fr-FR")}</strong></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function filterMonthTable(query) {
+  const rows = document.querySelectorAll("#month-products-tbody tr");
+  rows.forEach(r => {
+    const sku = r.children[0].textContent.toLowerCase();
     r.style.display = sku.includes(query) ? "" : "none";
   });
 }
@@ -665,31 +1063,27 @@ function filterSummaryTable(query) {
 function loadDemoData() {
   HectorState.products.clear();
 
-  // 1. Produit très saisonnier été
   HectorState.products.set("Crème Solaire SPF50 200ml", {
     sku: "Crème Solaire SPF50 200ml",
     monthlyDemand: [45, 60, 110, 280, 750, 1420, 1850, 1600, 420, 130, 50, 40]
   });
 
-  // 2. Produit très saisonnier hiver / fin d'année
   HectorState.products.set("Boîte Chocolats Prestige 500g", {
     sku: "Boîte Chocolats Prestige 500g",
     monthlyDemand: [80, 95, 120, 140, 90, 75, 60, 70, 110, 310, 1250, 2100]
   });
 
-  // 3. Produit régulier / quincaillerie industrielle (non-saisonnier)
   HectorState.products.set("Vis Inox A4 M6x25 (Boîte 100)", {
     sku: "Vis Inox A4 M6x25 (Boîte 100)",
     monthlyDemand: [420, 450, 460, 430, 470, 440, 390, 310, 480, 490, 460, 410]
   });
 
-  // 4. Produit rentrée scolaire
   HectorState.products.set("Cahier Spirale Grand Format 96p", {
     sku: "Cahier Spirale Grand Format 96p",
     monthlyDemand: [150, 140, 160, 180, 210, 450, 1100, 2400, 1850, 320, 190, 160]
   });
 
-  setFileStatus("✓ Jeu de données de démonstration chargé avec succès !");
+  setFileStatus("✓ Jeu de démonstration chargé avec succès (accents et formats validés) !");
   recalculateAll();
 }
 
@@ -708,7 +1102,7 @@ function downloadExcelTemplate() {
 }
 
 // ==========================================================================
-// 7. Exportations (Excel & CSV)
+// 7. Exportations (Excel & CSV avec BOM UTF-8 pour Excel Windows)
 // ==========================================================================
 function exportResultsToExcel() {
   if (HectorState.products.size === 0) return;
@@ -738,50 +1132,23 @@ function exportResultsToExcel() {
     });
   });
 
-  const summaryRows = [
-    [
-      "Référence Produit", "Classification", "Ventes Annuelles", 
-      "Mois Pic", "Mois Creux", "Min Basse Saison", "Min Haute Saison", 
-      "Max Basse Saison", "Max Haute Saison"
-    ]
-  ];
-
-  HectorState.products.forEach(p => {
-    const mins = p.calculations.map(c => c.stockMin);
-    const maxs = p.calculations.map(c => c.stockMax);
-    summaryRows.push([
-      p.sku,
-      p.isSeasonal ? "Saisonnier" : "Stable",
-      p.annualTotal,
-      p.peakMonth,
-      p.lowMonth,
-      Math.min(...mins),
-      Math.max(...mins),
-      Math.min(...maxs),
-      Math.max(...maxs)
-    ]);
-  });
-
+  const ws = XLSX.utils.aoa_to_sheet(monthlyRows);
   const wb = XLSX.utils.book_new();
-  const wsMonthly = XLSX.utils.aoa_to_sheet(monthlyRows);
-  const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
-
-  XLSX.utils.book_append_sheet(wb, wsSummary, "Synthese_Catalogue");
-  XLSX.utils.book_append_sheet(wb, wsMonthly, "Seuils_Min_Max_Mensuels");
-
-  XLSX.writeFile(wb, `Hector_Seuils_Min_Max_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  XLSX.utils.book_append_sheet(wb, ws, "Parametres_Stock_Complets");
+  XLSX.writeFile(wb, "Hector_Stock_Min_Max_Catalogue.xlsx");
 }
 
 function exportResultsToCSV() {
   if (HectorState.products.size === 0) return;
 
-  let csvContent = "data:text/csv;charset=utf-8,";
-  csvContent += "Reference;Classification;Mois;Demande;Coeff_Saison;Demande_Delai_L;Stock_Securite;Stock_MIN;Stock_MAX;Lot_Reassort\n";
+  const lines = [
+    "Référence Produit;Classification;Mois;Demande Prévue;Coeff Saison;Demande Délai;Stock Sécurité;Stock MIN;Stock MAX;Lot Réassort"
+  ];
 
   HectorState.products.forEach(p => {
     p.calculations.forEach(c => {
-      const row = [
-        `"${p.sku}"`,
+      lines.push([
+        `"${p.sku.replace(/"/g, '""')}"`,
         p.isSeasonal ? "Saisonnier" : "Stable",
         c.monthName,
         c.demand,
@@ -791,16 +1158,86 @@ function exportResultsToCSV() {
         c.stockMin,
         c.stockMax,
         c.reorderLot
-      ].join(";");
-      csvContent += row + "\n";
+      ].join(";"));
     });
   });
 
-  const encodedUri = encodeURI(csvContent);
-  const link = document.createElement("a");
-  link.setAttribute("href", encodedUri);
-  link.setAttribute("download", `Hector_Seuils_Min_Max_${new Date().toISOString().slice(0, 10)}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  // \uFEFF garantit à Excel sous Windows d'ouvrir immédiatement le CSV en UTF-8 sans altérer les accents
+  const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+  downloadBlob(blob, "Hector_Stock_Min_Max_Catalogue.csv");
+}
+
+function exportSelectedMonthToExcel() {
+  if (HectorState.products.size === 0) return;
+  const m = HectorState.selectedMonth;
+  const monthName = MONTH_NAMES[m];
+
+  const rows = [
+    [
+      "Référence Produit", "Classification", "Phase Saison", `Demande ${monthName}`,
+      "Coeff. Saison (CS)", "Demande sur Délai L", "Stock Sécurité (SS)", 
+      "Stock MIN (Alerte)", "Stock MAX (Plafond)", "Lot Réassort"
+    ]
+  ];
+
+  HectorState.products.forEach(p => {
+    const c = p.calculations[m];
+    rows.push([
+      p.sku,
+      p.isSeasonal ? "Saisonnier" : "Stable",
+      c.phase === 'peak' ? 'Pic de Saison' : (c.phase === 'low' ? 'Creux' : 'Normal'),
+      c.demand,
+      c.seasonalIndex,
+      c.leadTimeDemand,
+      c.safetyStock,
+      c.stockMin,
+      c.stockMax,
+      c.reorderLot
+    ]);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, `Commandes_${monthName}`);
+  XLSX.writeFile(wb, `Hector_Plan_Commande_${monthName}.xlsx`);
+}
+
+function exportSelectedMonthToCSV() {
+  if (HectorState.products.size === 0) return;
+  const m = HectorState.selectedMonth;
+  const monthName = MONTH_NAMES[m];
+
+  const lines = [
+    `Référence Produit;Classification;Phase Saison;Demande ${monthName};Coeff Saison;Demande Délai;Stock Sécurité;Stock MIN;Stock MAX;Lot Réassort`
+  ];
+
+  HectorState.products.forEach(p => {
+    const c = p.calculations[m];
+    lines.push([
+      `"${p.sku.replace(/"/g, '""')}"`,
+      p.isSeasonal ? "Saisonnier" : "Stable",
+      c.phase === 'peak' ? 'Pic de Saison' : (c.phase === 'low' ? 'Creux' : 'Normal'),
+      c.demand,
+      c.seasonalIndex,
+      c.leadTimeDemand,
+      c.safetyStock,
+      c.stockMin,
+      c.stockMax,
+      c.reorderLot
+    ].join(";"));
+  });
+
+  const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+  downloadBlob(blob, `Hector_Plan_Commande_${monthName}.csv`);
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }

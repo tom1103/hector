@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <defs>
+    <linearGradient id="hectorGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0ea5e9"/>
+      <stop offset="50%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#34d399"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#2563eb" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <!-- Hexagone Isométrique / Box Supply Chain -->
+  <polygon points="50,6 90,28 90,72 50,94 10,72 10,28" fill="url(#hectorGrad)" filter="url(#glow)"/>
+  <!-- Facette supérieure -->
+  <polygon points="50,6 90,28 50,50 10,28" fill="#ffffff" fill-opacity="0.18"/>
+  <!-- Facette latérale droite -->
+  <polygon points="50,50 90,28 90,72 50,94" fill="#000000" fill-opacity="0.15"/>
+  <!-- Monogramme H de Hector -->
+  <!-- Pilier gauche -->
+  <rect x="28" y="32" width="9" height="36" rx="4.5" fill="#ffffff"/>
+  <!-- Pilier droit -->
+  <rect x="63" y="32" width="9" height="36" rx="4.5" fill="#ffffff"/>
+  <!-- Traverse centrale -->
+  <rect x="28" y="46" width="44" height="8" rx="4" fill="#ffffff"/>
+  <!-- Barres de niveau Min & Max dynamiques -->
+  <rect x="42" y="36" width="16" height="5" rx="2.5" fill="url(#accentGrad)"/>
+  <rect x="42" y="59" width="16" height="5" rx="2.5" fill="url(#accentGrad)"/>
+  <!-- Point focal intelligent -->
+  <circle cx="50" cy="50" r="3.5" fill="#2563eb"/>
+</svg>
