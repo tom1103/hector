@@ -49,7 +49,7 @@
     <!-- Zone de dépôt / import -->
     <section class="upload-section card">
       <div class="upload-dropzone" id="dropzone">
-        <input type="file" id="file-input" accept=".xlsx, .xls, .csv" style="display: none;">
+        <input type="file" id="file-input" accept=".xlsx, .xls, .csv" multiple style="display: none;">
         <div class="dropzone-content">
           <div class="dropzone-icon">
             <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -84,7 +84,7 @@
               <span class="tooltip-icon" title="Temps moyen entre l'envoi du bon de commande et la mise en stock">?</span>
             </label>
             <div class="input-with-suffix">
-              <input type="number" id="param-lead-time" value="30" min="1" max="365">
+              <input type="number" id="param-lead-time" value="7" min="1" max="365">
               <span>j</span>
             </div>
           </div>
@@ -95,7 +95,7 @@
               <span class="tooltip-icon" title="Nombre de jours entre deux réapprovisionnements réguliers">?</span>
             </label>
             <div class="input-with-suffix">
-              <input type="number" id="param-review-period" value="15" min="1" max="180">
+              <input type="number" id="param-review-period" value="7" min="1" max="180">
               <span>j</span>
             </div>
           </div>

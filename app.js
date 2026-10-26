@@ -20,8 +20,8 @@ const HectorState = {
   selectedSku: null,
   chartInstance: null,
   params: {
-    leadTimeDays: 30,
-    reviewPeriodDays: 15,
+    leadTimeDays: 7,
+    reviewPeriodDays: 7,
     zScore: 1.65,
     seasonalityRatioThreshold: 1.4
   }
@@ -50,8 +50,8 @@ function updateParamsFromUI() {
   const zScoreSelect = document.getElementById("param-service-level");
   const seasonSelect = document.getElementById("param-seasonality-threshold");
 
-  HectorState.params.leadTimeDays = Math.max(1, parseInt(leadTimeInput.value, 10) || 30);
-  HectorState.params.reviewPeriodDays = Math.max(1, parseInt(reviewInput.value, 10) || 15);
+  HectorState.params.leadTimeDays = Math.max(1, parseInt(leadTimeInput.value, 10) || 7);
+  HectorState.params.reviewPeriodDays = Math.max(1, parseInt(reviewInput.value, 10) || 7);
   HectorState.params.zScore = parseFloat(zScoreSelect.value) || 1.65;
   HectorState.params.seasonalityRatioThreshold = parseFloat(seasonSelect.value) || 1.4;
 }
@@ -104,12 +104,11 @@ function initDropzone() {
 
   dropzone.addEventListener('drop', (e) => {
     const dt = e.dataTransfer;
-    const files = dt.files;
-    if (files.length > 0) handleUploadedFile(files[0]);
+    if (dt.files && dt.files.length > 0) handleUploadedFiles(dt.files);
   });
 
   fileInput.addEventListener('change', (e) => {
-    if (e.target.files.length > 0) handleUploadedFile(e.target.files[0]);
+    if (e.target.files && e.target.files.length > 0) handleUploadedFiles(e.target.files);
   });
 }
 
@@ -120,81 +119,103 @@ function preventDefaults(e) {
 
 function setFileStatus(message, isError = false) {
   const statusEl = document.getElementById("file-status");
-  statusEl.textContent = message;
+  statusEl.innerHTML = message;
   statusEl.style.color = isError ? "var(--danger)" : "var(--success)";
 }
 
 // ==========================================================================
-// 3. Analyse et Parsing des Fichiers (Excel & CSV)
+// 3. Analyse et Parsing Multi-Fichiers S?curis? (100% dans le Navigateur)
 // ==========================================================================
-function handleUploadedFile(file) {
-  setFileStatus(`Lecture de "${file.name}" en cours...`);
-  const reader = new FileReader();
+async function handleUploadedFiles(fileList) {
+  const files = Array.from(fileList);
+  if (files.length === 0) return;
 
-  reader.onload = (e) => {
+  setFileStatus(`Lecture de ${files.length} fichier(s) en cours...`);
+  updateParamsFromUI();
+  HectorState.products.clear();
+
+  const tempAgg = new Map(); // sku -> Array(12)
+  let filesParsed = 0;
+  const errors = [];
+
+  for (const file of files) {
     try {
-      const data = new Uint8Array(e.target.result);
-      const workbook = XLSX.read(data, { type: 'array' });
+      const data = await readFileAsArrayBuffer(file);
+      const workbook = XLSX.read(new Uint8Array(data), { type: 'array' });
       const firstSheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[firstSheetName];
       const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
 
-      if (!rawRows || rawRows.length < 2) {
-        throw new Error("Le fichier est vide ou ne contient pas d'en-tête valide.");
-      }
+      if (!rawRows || rawRows.length < 2) continue;
 
-      parseAndProcessDataset(rawRows);
-      setFileStatus(`✓ Fichier "${file.name}" analysé avec succès !`);
+      const fileNameHint = extractMonthFromFileName(file.name);
+      processDatasetRows(rawRows, tempAgg, fileNameHint);
+      filesParsed++;
     } catch (err) {
       console.error(err);
-      setFileStatus(`Erreur lors du traitement : ${err.message}`, true);
+      errors.push(`${file.name}: ${err.message}`);
     }
-  };
-
-  reader.onerror = () => {
-    setFileStatus("Impossible de lire le fichier.", true);
-  };
-
-  reader.readAsArrayBuffer(file);
-}
-
-/**
- * Détection intelligente de la structure du tableau :
- * Structure A : Format Matrice (Col 1 = Produit, Col 2 à 13 = Jan..Déc)
- * Structure B : Format Lignes (Col Date/Mois, Col Produit, Col Quantité)
- */
-function parseAndProcessDataset(rows) {
-  updateParamsFromUI();
-  HectorState.products.clear();
-
-  const headers = rows[0].map(h => String(h).trim().toLowerCase());
-
-  // Vérification si format Matrice (Jan..Dec dans les colonnes)
-  const monthMatchCount = headers.filter(h => 
-    MONTH_NAMES.some(m => h.includes(m.toLowerCase().substring(0, 3))) ||
-    ["jan", "fev", "mar", "avr", "mai", "jun", "jui", "aou", "sep", "oct", "nov", "dec"].some(m => h.includes(m))
-  ).length;
-
-  if (monthMatchCount >= 8) {
-    parseMatrixFormat(rows, headers);
-  } else {
-    parseLineFormat(rows, headers);
   }
 
-  if (HectorState.products.size === 0) {
-    throw new Error("Aucun produit exploitable n'a été trouvé. Vérifiez les colonnes de votre fichier.");
+  if (tempAgg.size === 0) {
+    setFileStatus(`Erreur lors de l'analyse : aucun produit exploitable d?tect?. ${errors.join(', ')}`, true);
+    return;
+  }
+
+  for (const [sku, monthlyDemand] of tempAgg.entries()) {
+    HectorState.products.set(sku, {
+      sku: sku,
+      monthlyDemand: monthlyDemand
+    });
   }
 
   recalculateAll();
+  setFileStatus(`? ${filesParsed} fichier(s) analys?(s) avec succ?s ! ${tempAgg.size} r?f?rences charg?es.`);
 }
 
-// Format Matrice : [Produit, Jan, Fév, Mar, ..., Déc]
-function parseMatrixFormat(rows, headers) {
-  // Trouver la colonne produit
-  let prodColIdx = headers.findIndex(h => h.includes("prod") || h.includes("art") || h.includes("ref") || h.includes("sku") || h.includes("code"));
+function readFileAsArrayBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target.result);
+    reader.onerror = () => reject(new Error("Lecture impossible du fichier"));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function extractMonthFromFileName(filename) {
+  const name = filename.toLowerCase();
+  for (let m = 0; m < 12; m++) {
+    if (name.includes(MONTH_NAMES[m].toLowerCase()) || name.includes(MONTH_SHORT[m].toLowerCase())) {
+      return m;
+    }
+  }
+  const mMatch = name.match(/month[_-\s]?(\d{1,2})|mois[_-\s]?(\d{1,2})|m(\d{1,2})/);
+  if (mMatch) {
+    const num = parseInt(mMatch[1] || mMatch[2] || mMatch[3], 10);
+    if (num >= 1 && num <= 12) return num - 1;
+  }
+  return -1;
+}
+
+function processDatasetRows(rows, tempAgg, fileNameHint) {
+  const headers = rows[0].map(h => String(h || "").trim().toLowerCase());
+
+  // D?tection Format Matrice : 12 colonnes de mois
+  const monthCols = headers.filter(h =>
+    MONTH_NAMES.some(m => h.includes(m.toLowerCase().substring(0, 3)))
+  ).length;
+
+  if (monthCols >= 8) {
+    parseMatrixFormat(rows, headers, tempAgg);
+  } else {
+    parseLineFormat(rows, headers, tempAgg, fileNameHint);
+  }
+}
+
+function parseMatrixFormat(rows, headers, tempAgg) {
+  let prodColIdx = headers.findIndex(h => /prod|art|ref|sku|code|designation|dsignation|nom/i.test(h));
   if (prodColIdx === -1) prodColIdx = 0;
 
-  // Déterminer les indices des 12 mois
   const monthColIndices = new Array(12).fill(-1);
   for (let m = 0; m < 12; m++) {
     const mName = MONTH_NAMES[m].toLowerCase();
@@ -207,33 +228,47 @@ function parseMatrixFormat(rows, headers) {
     const sku = String(row[prodColIdx] || "").trim();
     if (!sku) continue;
 
-    const monthlyDemand = new Array(12).fill(0);
+    if (!tempAgg.has(sku)) tempAgg.set(sku, new Array(12).fill(0));
+    const target = tempAgg.get(sku);
+
     for (let m = 0; m < 12; m++) {
       const colIdx = monthColIndices[m];
       if (colIdx !== -1 && row[colIdx] !== undefined) {
         const val = parseFloat(String(row[colIdx]).replace(",", "."));
-        monthlyDemand[m] = isNaN(val) ? 0 : Math.max(0, val);
+        if (!isNaN(val) && val > 0) target[m] += val;
       }
     }
-
-    HectorState.products.set(sku, {
-      sku: sku,
-      monthlyDemand: monthlyDemand
-    });
   }
 }
 
-// Format Lignes : [Date/Mois, Produit, Quantité vendue]
-function parseLineFormat(rows, headers) {
-  let prodIdx = headers.findIndex(h => h.includes("prod") || h.includes("art") || h.includes("ref") || h.includes("sku"));
-  let qtyIdx = headers.findIndex(h => h.includes("qte") || h.includes("quant") || h.includes("vent") || h.includes("sales") || h.includes("demande"));
-  let dateIdx = headers.findIndex(h => h.includes("date") || h.includes("mois") || h.includes("month") || h.includes("periode"));
-
+function parseLineFormat(rows, headers, tempAgg, fileNameHint) {
+  // D?tection colonne produit
+  let prodIdx = headers.findIndex(h => /prod|art|ref|sku|code|designation|dsignation|libell/i.test(h));
   if (prodIdx === -1) prodIdx = 0;
-  if (qtyIdx === -1) qtyIdx = rows[0].length - 1; // Dernière colonne par défaut
-  if (dateIdx === -1) dateIdx = 1;
 
-  const tempAgg = new Map();
+  // D?tection colonne quantit? (en ?vitant le Chiffre d'Affaires / Prix / Montant)
+  let qtyIdx = headers.findIndex(h => 
+    (/qte|qt|quant|vent|sales|volume|demande|nombre/i.test(h)) && 
+    !(/ca|chiffre|affaires|prix|montant|total|eur|euro|cost|price/i.test(h))
+  );
+  if (qtyIdx === -1) {
+    // Si pas trouv? par mot-cl? explicite, chercher une colonne num?rique qui n'est pas le CA
+    qtyIdx = headers.findIndex(h => /volume|vendu|qte/i.test(h));
+    if (qtyIdx === -1) qtyIdx = rows[0].length - 1;
+  }
+
+  // D?tection colonne date
+  let dateIdx = headers.findIndex(h => /date|mois|month|periode|priode|jour|day/i.test(h));
+  if (dateIdx === -1) {
+    // Tester sur la ligne 1 si une colonne ressemble ? une date
+    for (let col = 0; col < headers.length; col++) {
+      if (col === prodIdx || col === qtyIdx) continue;
+      if (extractMonthIndex(rows[1] && rows[1][col]) !== -1) {
+        dateIdx = col;
+        break;
+      }
+    }
+  }
 
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
@@ -243,54 +278,65 @@ function parseLineFormat(rows, headers) {
     const rawQty = parseFloat(String(row[qtyIdx] || 0).replace(",", "."));
     const qty = isNaN(rawQty) ? 0 : Math.max(0, rawQty);
 
-    const monthIndex = extractMonthIndex(row[dateIdx]);
-    if (monthIndex === -1) continue;
-
-    if (!tempAgg.has(sku)) {
-      tempAgg.set(sku, new Array(12).fill(0));
+    let monthIndex = -1;
+    if (dateIdx !== -1 && row[dateIdx] !== undefined) {
+      monthIndex = extractMonthIndex(row[dateIdx]);
     }
-    tempAgg.get(sku)[monthIndex] += qty;
-  }
+    // Si la colonne date n'a pas donn? de r?sultat mais qu'un indice de fichier existe
+    if (monthIndex === -1 && fileNameHint !== -1) {
+      monthIndex = fileNameHint;
+    }
 
-  for (const [sku, monthlyDemand] of tempAgg.entries()) {
-    HectorState.products.set(sku, {
-      sku: sku,
-      monthlyDemand: monthlyDemand
-    });
+    if (monthIndex < 0 || monthIndex > 11) continue;
+
+    if (!tempAgg.has(sku)) tempAgg.set(sku, new Array(12).fill(0));
+    tempAgg.get(sku)[monthIndex] += qty;
   }
 }
 
 function extractMonthIndex(rawDate) {
   if (rawDate === undefined || rawDate === null) return -1;
   const str = String(rawDate).trim().toLowerCase();
+  if (!str) return -1;
 
-  // Test par nom de mois en texte
+  // 1. D?tection par nom de mois textuel (Janvier..D?cembre)
   for (let m = 0; m < 12; m++) {
-    if (str.includes(MONTH_NAMES[m].toLowerCase()) || str.startsWith(MONTH_SHORT[m].toLowerCase().substring(0, 3))) {
+    const full = MONTH_NAMES[m].toLowerCase();
+    const short = MONTH_SHORT[m].toLowerCase().substring(0, 3);
+    if (str.includes(full) || str.startsWith(short)) {
       return m;
     }
   }
 
-  // Si c'est un nombre direct entre 1 et 12
-  const num = parseInt(str, 10);
-  if (!isNaN(num) && num >= 1 && num <= 12 && str.length <= 2) {
-    return num - 1;
+  // 2. D?tection par regex date stricte (JJ/MM/AAAA ou AAAA-MM-JJ ou JJ-MM-AAAA)
+  const dateMatch = str.match(/^(\d{1,4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,4})/);
+  if (dateMatch) {
+    const p1 = parseInt(dateMatch[1], 10);
+    const p2 = parseInt(dateMatch[2], 10);
+    const p3 = parseInt(dateMatch[3], 10);
+    if (p1 > 1000 && p2 >= 1 && p2 <= 12) return p2 - 1; // YYYY-MM-DD
+    if (p3 > 1000 && p2 >= 1 && p2 <= 12) return p2 - 1; // DD/MM/YYYY
+    if (p1 >= 1 && p1 <= 12 && p2 > 12) return p1 - 1; // MM/DD/YYYY
+    if (p2 >= 1 && p2 <= 12) return p2 - 1; // DD/MM/YY
   }
 
-  // Si c'est une date Excel ou format ISO / FR (ex: 2024-06-15 ou 15/06/2024)
-  const d = new Date(rawDate);
-  if (!isNaN(d.getTime())) {
-    return d.getMonth();
+  // 3. D?tection si c'est un num?ro de mois isol? (1 ? 12 ou 01 ? 12)
+  if (/^(0?[1-9]|1[0-2])$/.test(str)) {
+    return parseInt(str, 10) - 1;
   }
 
-  // Extraction via regex pour dd/mm/yyyy ou yyyy-mm-dd
-  const parts = str.match(/(\d{1,4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,4})/);
-  if (parts) {
-    // Si la 2ème partie est entre 1 et 12
-    const m = parseInt(parts[2], 10);
-    if (m >= 1 && m <= 12) return m - 1;
+  // 4. Objet Date natif
+  if (rawDate instanceof Date && !isNaN(rawDate.getTime())) {
+    return rawDate.getMonth();
   }
 
+  // 5. Nombre s?rial Excel (dates entre ~1980 et ~2060 : ~29000 ? 60000)
+  if (typeof rawDate === "number" && rawDate >= 29000 && rawDate <= 60000) {
+    const jsDate = new Date(Math.round((rawDate - 25569) * 86400 * 1000));
+    if (!isNaN(jsDate.getTime())) return jsDate.getUTCMonth();
+  }
+
+  // ATTENTION : Ne JAMAIS faire new Date(str) pour des nombres bruts (ex: CA, ID) !
   return -1;
 }
 
