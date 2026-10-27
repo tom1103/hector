@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hector — Optimiseur de Stock Min / Max Saisonnier</title>
+  <title>Hector — Optimiseur de Stock Min / Max, ABC & Déstockage</title>
   <link rel="icon" type="image/svg+xml" href="logo.svg">
   <link rel="stylesheet" href="style.css">
   <!-- Polices modernes -->
@@ -26,15 +26,15 @@
         <div class="brand-text">
           <div class="brand-title-row">
             <h1>HECTOR</h1>
-            <span class="brand-version">v2.4 Pro</span>
+            <span class="brand-version">v2.5 Pro</span>
           </div>
-          <span class="brand-tag">Optimiseur de Stock, Ventes Passées & Prévisions Saisonnières</span>
+          <span class="brand-tag">Optimiseur de Stock Min/Max, Analyse ABC (80/20) & Détection Surstocks</span>
         </div>
       </div>
       <div class="header-actions">
         <button id="btn-demo" class="btn btn-secondary">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          Charger démo (5 mois + prévisions)
+          Charger démo (5 mois + ABC + Stocks)
         </button>
         <button id="btn-download-template" class="btn btn-secondary">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -61,9 +61,9 @@
           </div>
           <h3>Déposez votre historique de ventes ici</h3>
           <p class="dropzone-hint">
-            Formats : <strong>Excel (.xlsx, .xls)</strong> ou <strong>CSV</strong>. Glissez un ou plusieurs fichiers de ventes (même partiels sur quelques mois).<br>
-            <span class="encoding-badge">✓ Encodage auto (UTF-8, Windows-1252, ANSI) & Accents préservés</span>
-            <span class="privacy-badge">🔒 100% local en mémoire dans votre navigateur</span>
+            Formats : <strong>Excel (.xlsx, .xls)</strong> ou <strong>CSV</strong>. Vos fichiers restent <strong>mémorisés dans votre navigateur</strong> d'une session à l'autre.<br>
+            <span class="encoding-badge">💾 Sauvegarde auto locale (IndexedDB)</span>
+            <span class="privacy-badge">🔒 100% confidentiel sur votre PC</span>
           </p>
           <div class="dropzone-buttons">
             <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">
@@ -75,8 +75,8 @@
           <!-- Panneau de gestion des fichiers mensuels chargés -->
           <div id="uploaded-files-panel" class="uploaded-files-panel" style="display: none;" onclick="event.stopPropagation()">
             <div class="uploaded-files-header">
-              <span>📂 <strong>Fichiers mensuels chargés</strong> (vérifiez ou modifiez le mois associé) :</span>
-              <button type="button" id="btn-clear-files" class="btn-clear-all-files" title="Vider tous les fichiers">🗑️ Tout vider</button>
+              <span>📂 <strong>Fichiers mensuels mémorisés</strong> (vérifiez ou modifiez le mois associé) :</span>
+              <button type="button" id="btn-clear-files" class="btn-clear-all-files" title="Effacer tous les fichiers de la mémoire locale">🗑️ Tout vider</button>
             </div>
             <div id="uploaded-files-list" class="uploaded-files-list"></div>
           </div>
@@ -87,7 +87,7 @@
       <div class="settings-panel">
         <div class="settings-header">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          <h4>Politique de Réassort & Niveau de Service</h4>
+          <h4>Politique de Réassort & Priorisation ABC</h4>
         </div>
         <div class="settings-grid">
           <div class="setting-item">
@@ -137,6 +137,17 @@
               <option value="2.00">Extrême (> 2.00x)</option>
             </select>
           </div>
+
+          <div class="setting-item" style="grid-column: 1 / -1;">
+            <label for="param-abc-modulation">
+              Modulation Stock de Sécurité par Classe ABC (Loi 80/20)
+              <span class="tooltip-icon" title="Renforce automatiquement le stock de sécurité sur les produits Classe A (80% du CA) et allège le stock sur les produits Classe C (fond de catalogue) pour optimiser votre trésorerie">?</span>
+            </label>
+            <select id="param-abc-modulation">
+              <option value="auto" selected>Activée : Classe A (+15% sécu) • Classe B (Standard) • Classe C (-25% sécu)</option>
+              <option value="uniform">Désactivée : Appliquer le même niveau Z uniforme à tout le catalogue</option>
+            </select>
+          </div>
         </div>
 
         <div class="settings-actions" style="margin-top: 1rem;">
@@ -181,52 +192,56 @@
       <!-- KPIs synthétiques -->
       <div class="kpi-grid">
         <div class="kpi-card">
-          <span class="kpi-title">Articles analysés</span>
+          <span class="kpi-title">Catalogue & ABC (80/20)</span>
           <span class="kpi-value" id="kpi-total-skus">0</span>
           <span class="kpi-sub" id="kpi-skus-sub">Références actives</span>
         </div>
         <div class="kpi-card">
-          <span class="kpi-title">Ventes Réelles Passées</span>
+          <span class="kpi-title">Ventes & CA Réels Passés</span>
           <span class="kpi-value" id="kpi-actual-demand" style="color: #059669;">0</span>
           <span class="kpi-sub" id="kpi-actual-months-sub">Déjà vendu (historique)</span>
         </div>
         <div class="kpi-card">
-          <span class="kpi-title">Prévisions Annuelles Totales</span>
+          <span class="kpi-title">Prévisions Annuelles (12m)</span>
           <span class="kpi-value" id="kpi-total-demand" style="color: #2563eb;">0</span>
           <span class="kpi-sub" id="kpi-forecast-sub">Réel + Extrapolations</span>
         </div>
-        <div class="kpi-card highlight-season">
-          <span class="kpi-title">Profils saisonniers</span>
-          <span class="kpi-value" id="kpi-seasonal-count">0</span>
-          <span class="kpi-sub" id="kpi-seasonal-ratio">0% du catalogue</span>
+        <div class="kpi-card highlight-min" style="cursor: pointer;" onclick="switchViewMode('alerts')" title="Cliquer pour voir les articles à commander">
+          <span class="kpi-title">🚨 À Commander (Stock ≤ Min)</span>
+          <span class="kpi-value" id="kpi-restock-count">0</span>
+          <span class="kpi-sub" id="kpi-restock-budget">Budget réassort : —</span>
         </div>
-        <div class="kpi-card">
-          <span class="kpi-title">Stock tampon moyen (SS)</span>
-          <span class="kpi-value" id="kpi-avg-ss">0</span>
-          <span class="kpi-sub">Unités de sécurité globale</span>
+        <div class="kpi-card highlight-season" style="cursor: pointer;" onclick="switchViewMode('alerts')" title="Cliquer pour voir les surstocks et stocks dormants à déstocker">
+          <span class="kpi-title">❄️ Surstocks & Dormants</span>
+          <span class="kpi-value" id="kpi-overstock-count">0</span>
+          <span class="kpi-sub" id="kpi-overstock-value">Cash immobilisé : —</span>
         </div>
       </div>
 
-      <!-- Barre de Regroupement de l'analyse (Par Référence vs Par Date) -->
+      <!-- Barre de Regroupement de l'analyse (3 vues : Par Référence / Par Date / Surstocks & Réassort) -->
       <div class="view-mode-bar card">
         <div class="view-mode-title">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-          <span>Regroupement de l'analyse :</span>
+          <span>Pilotage de l'analyse :</span>
         </div>
         <div class="view-mode-toggles">
           <button id="toggle-view-sku" class="btn-view-toggle active" data-view="sku">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
-            Regrouper par Référence (Vue Article & Extrapolations)
+            Par Référence (Fiche & ABC)
           </button>
           <button id="toggle-view-date" class="btn-view-toggle" data-view="date">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            Regrouper par Date / Mois (Calendrier de Réapprovisionnement)
+            Par Date / Mois (Calendrier)
+          </button>
+          <button id="toggle-view-alerts" class="btn-view-toggle" data-view="alerts">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            ❄️ Surstocks, Dormants & Réassort
           </button>
         </div>
       </div>
 
       <!-- ================================================================= -->
-      <!-- VUE 1 : REGROUPEMENT PAR RÉFÉRENCE (ARTICLE) -->
+      <!-- VUE 1 : REGROUPEMENT PAR RÉFÉRENCE (ARTICLE & ABC) -->
       <!-- ================================================================= -->
       <div id="view-mode-sku-container" class="view-container">
         <!-- Vue détaillée de l'article sélectionné -->
@@ -249,6 +264,7 @@
                 </div>
 
                 <select id="product-select" class="product-dropdown" style="display: none;"></select>
+                <span id="product-abc-badge" class="badge">Classe A</span>
                 <span id="product-season-badge" class="badge">Saisonnier</span>
               </div>
             </div>
@@ -295,6 +311,7 @@
                   <th>Nature & Événement</th>
                   <th>Coeff. Mois</th>
                   <th>Ventes (Réelles / Prévues)</th>
+                  <th>CA Mensuel Estimé</th>
                   <th>Coeff. Saison (CS)</th>
                   <th>Demande Délai (L=7j)</th>
                   <th>Stock de Sécurité (SS)</th>
@@ -310,10 +327,18 @@
           </div>
         </div>
 
-        <!-- Tableau récapitulatif de tous les articles -->
+        <!-- Tableau récapitulatif de tous les articles avec filtre ABC -->
         <div class="catalog-summary card">
           <div class="summary-header">
-            <h4>Synthèse Globale par Référence & Seuils Annuels</h4>
+            <div>
+              <h4>Synthèse Globale par Référence, Classification ABC (80/20) & Valorisation</h4>
+              <div class="abc-filter-pills" id="abc-filter-pills">
+                <button type="button" class="abc-pill active" data-abc="all">Tout le catalogue</button>
+                <button type="button" class="abc-pill abc-pill-a" data-abc="A">🏆 Classe A (80% du CA)</button>
+                <button type="button" class="abc-pill abc-pill-b" data-abc="B">🥈 Classe B (15% du CA)</button>
+                <button type="button" class="abc-pill abc-pill-c" data-abc="C">🥉 Classe C (5% du CA)</button>
+              </div>
+            </div>
             <input type="text" id="catalog-search" placeholder="Filtrer une référence..." class="search-input">
           </div>
           <div class="table-responsive">
@@ -321,14 +346,15 @@
               <thead>
                 <tr>
                   <th class="sortable-th" data-sort="sku">Référence / Produit ↕</th>
-                  <th class="sortable-th" data-sort="isSeasonal">Classification ↕</th>
-                  <th class="sortable-th" data-sort="actualTotal">Déjà Vendu (Réel) ↕</th>
-                  <th class="sortable-th" data-sort="annualTotal">Ventes Annuelles Projetées ↕</th>
-                  <th class="sortable-th" data-sort="peakMonth">Mois Pic ↕</th>
-                  <th>Min (Basse saison)</th>
-                  <th class="col-highlight-min">Min (Haute saison)</th>
-                  <th>Max (Basse saison)</th>
-                  <th class="col-highlight-max">Max (Haute saison)</th>
+                  <th class="sortable-th" data-sort="abcRank">Classe ABC ↕</th>
+                  <th class="sortable-th" data-sort="isSeasonal">Profil ↕</th>
+                  <th class="sortable-th" data-sort="actualTotal">Déjà Vendu (u.) ↕</th>
+                  <th class="sortable-th" data-sort="actualRevenue">CA Réel (€) ↕</th>
+                  <th class="sortable-th" data-sort="unitPrice">Prix Moy. (€) ↕</th>
+                  <th class="sortable-th" data-sort="annualTotal">Projeté 12m (u.) ↕</th>
+                  <th class="sortable-th" data-sort="currentStock">Stock Rayon ↕</th>
+                  <th class="col-highlight-min sortable-th" data-sort="minHighSeason">Min (Pic) ↕</th>
+                  <th class="col-highlight-max sortable-th" data-sort="maxHighSeason">Max (Pic) ↕</th>
                 </tr>
               </thead>
               <tbody id="all-products-tbody">
@@ -368,12 +394,12 @@
           <div class="kpi-card highlight-min">
             <span class="kpi-title">Stock Min Global du mois</span>
             <span class="kpi-value" id="month-kpi-min">0</span>
-            <span class="kpi-sub">Point de commande cumulé</span>
+            <span class="kpi-sub" id="month-kpi-min-val">Point de commande cumulé</span>
           </div>
           <div class="kpi-card highlight-max">
             <span class="kpi-title">Stock Max Global du mois</span>
             <span class="kpi-value" id="month-kpi-max">0</span>
-            <span class="kpi-sub">Plafond réassort cumulé</span>
+            <span class="kpi-sub" id="month-kpi-max-val">Plafond réassort cumulé</span>
           </div>
           <div class="kpi-card highlight-season">
             <span class="kpi-title">Articles en Pic de Saison</span>
@@ -413,18 +439,110 @@
                 <thead>
                   <tr>
                     <th class="sortable-month-th" data-sort="sku">Référence / Produit ↕</th>
+                    <th class="sortable-month-th" data-sort="abcRank">ABC ↕</th>
                     <th class="sortable-month-th" data-sort="nature">Nature ↕</th>
-                    <th class="sortable-month-th" data-sort="phase">Phase Saison ↕</th>
-                    <th class="sortable-month-th" data-sort="demand">Ventes du Mois ↕</th>
-                    <th>Coeff. Saison (CS)</th>
-                    <th>Demande Délai (L=7j)</th>
+                    <th class="sortable-month-th" data-sort="demand">Ventes Mois ↕</th>
+                    <th class="sortable-month-th" data-sort="currentStock">Stock Rayon ↕</th>
                     <th>Stock Sécurité (SS)</th>
                     <th class="col-highlight-min sortable-month-th" data-sort="stockMin">STOCK MIN (Alerte) ↕</th>
                     <th class="col-highlight-max sortable-month-th" data-sort="stockMax">STOCK MAX (Cible) ↕</th>
-                    <th class="sortable-month-th" data-sort="reorderLot">Lot Réassort ↕</th>
+                    <th class="sortable-month-th" data-sort="orderQty">À Commander (u.) ↕</th>
+                    <th class="sortable-month-th" data-sort="orderValue">Budget Réassort (€) ↕</th>
                   </tr>
                 </thead>
                 <tbody id="month-products-tbody">
+                  <!-- Rempli en JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- VUE 3 : SURSTOCKS, STOCKS DORMANTS & ALERTES DE RÉASSORT -->
+      <!-- ================================================================= -->
+      <div id="view-mode-alerts-container" class="view-container" style="display: none;">
+        <!-- Sous-navigation Actions : Déstockage Braderie vs Bon de Commande -->
+        <div class="alerts-overview-card card">
+          <div class="alerts-header-row">
+            <div>
+              <h4>Diagnostic du Stock Physique Actuel (Basé sur la colonne « Quantité stock » de votre dernier mois)</h4>
+              <p class="alerts-sub-hint">Compare votre stock en rayon aux seuils Min/Max du mois cible sélectionné (<strong id="alerts-target-month-label">Novembre</strong>) et détecte les produits sans rotation.</p>
+            </div>
+            <div class="alerts-tab-buttons">
+              <button type="button" id="btn-tab-overstock" class="btn-alert-tab active">
+                ❄️ Surstocks & Stocks Dormants (<span id="tab-count-overstock">0</span>)
+              </button>
+              <button type="button" id="btn-tab-restock" class="btn-alert-tab">
+                🚨 Bon de Commande Urgent — Stock ≤ Min (<span id="tab-count-restock">0</span>)
+              </button>
+            </div>
+          </div>
+
+          <!-- PANNEAU A : SURSTOCKS & STOCKS DORMANTS (CANDIDATS BRADERIE / SOLDES) -->
+          <div id="panel-overstock" class="alerts-subpanel">
+            <div class="alerts-action-banner banner-overstock">
+              <div>
+                <strong>💡 Candidats prioritaires pour votre prochaine Braderie / Soldes / Offre Promo :</strong>
+                <span>Ces articles dépassent le plafond <code>Stock Max</code> ou n'ont enregistré <strong>aucune vente récente</strong> alors que du stock dort en rayon.</span>
+              </div>
+              <button type="button" id="btn-export-overstock" class="btn btn-primary btn-sm">
+                📥 Exporter la Liste Braderie / Déstockage (.xlsx)
+              </button>
+            </div>
+
+            <div class="table-responsive">
+              <table class="data-table" id="overstock-table">
+                <thead>
+                  <tr>
+                    <th>Référence / Produit</th>
+                    <th>Classe ABC</th>
+                    <th>Diagnostic</th>
+                    <th>Ventes Récentes (2 derniers mois)</th>
+                    <th>Stock Actuel Rayon</th>
+                    <th class="col-highlight-max">Stock MAX Autorisé</th>
+                    <th>Excédent (u. en trop)</th>
+                    <th>Prix Moyen (€)</th>
+                    <th style="background:#fef3c7; color:#92400e;">Trésorerie Immobilisée (€)</th>
+                    <th>Action Recommandée</th>
+                  </tr>
+                </thead>
+                <tbody id="overstock-tbody">
+                  <!-- Rempli en JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- PANNEAU B : BON DE COMMANDE URGENT (STOCK <= MIN) -->
+          <div id="panel-restock" class="alerts-subpanel" style="display: none;">
+            <div class="alerts-action-banner banner-restock">
+              <div>
+                <strong>⚡ Liste de réapprovisionnement immédiat (Stock Rayon ≤ Stock Min) :</strong>
+                <span>Priorisez les articles <strong>🏆 Classe A</strong> pour éviter toute rupture de stock sur vos meilleures ventes.</span>
+              </div>
+              <button type="button" id="btn-export-restock" class="btn btn-success btn-sm">
+                📥 Exporter le Bon de Commande (.xlsx)
+              </button>
+            </div>
+
+            <div class="table-responsive">
+              <table class="data-table" id="restock-table">
+                <thead>
+                  <tr>
+                    <th>Référence / Produit</th>
+                    <th>Classe ABC</th>
+                    <th>Urgence</th>
+                    <th>Stock Actuel Rayon</th>
+                    <th class="col-highlight-min">Stock MIN (Alerte)</th>
+                    <th class="col-highlight-max">Stock MAX (Cible)</th>
+                    <th style="background:#dcfce7; color:#166534;">Qté à Commander (Max - Stock)</th>
+                    <th>Prix Moyen (€)</th>
+                    <th>Valorisation Commande (€)</th>
+                  </tr>
+                </thead>
+                <tbody id="restock-tbody">
                   <!-- Rempli en JS -->
                 </tbody>
               </table>
@@ -454,13 +572,13 @@
             <h4>Stock de Sécurité (SS)</h4>
           </div>
           <div class="def-formula-box">
-            <code>SS = ⌈ Z × σ_jour × √L ⌉</code>
+            <code>SS = ⌈ Z_ABC × σ_jour × √L ⌉</code>
           </div>
           <p class="def-desc">
-            <strong>Rôle :</strong> Réserve de protection <em>inviolable</em> destinée à absorber les deux aléas majeurs de votre commerce : un retard de livraison du fournisseur ou une accélération imprévue des ventes clients pendant le délai de livraison.
+            <strong>Rôle :</strong> Réserve de protection <em>inviolable</em> destinée à absorber un retard fournisseur ou une accélération imprévue des ventes pendant les 7 jours de livraison. Modulé automatiquement selon la <strong>Classe ABC</strong> du produit.
           </p>
           <div class="def-rule">
-            <strong>⚠️ Règle d'or :</strong> On ne touche jamais au stock de sécurité en situation normale. Si votre stock physique descend dans le SS, vous êtes en situation d'urgence logistique.
+            <strong>⚠️ Règle d'or :</strong> Renforcé de +15% sur la <strong>Classe A (80% du CA)</strong> pour zéro rupture, et réduit de -25% sur la <strong>Classe C</strong> pour préserver votre trésorerie.
           </div>
         </div>
 
@@ -474,10 +592,10 @@
             <code>Min = Demande Délai (L) + SS</code>
           </div>
           <p class="def-desc">
-            <strong>Rôle :</strong> Le <strong>déclencheur impératif de commande</strong>. C'est le niveau précis de stock disponible (stock en rayon + commandes déjà parties chez le fournisseur) à partir duquel vous <em>devez</em> envoyer un bon de commande.
+            <strong>Rôle :</strong> Le <strong>déclencheur impératif de commande</strong>. C'est le niveau précis de stock disponible à partir duquel vous <em>devez</em> envoyer un bon de commande.
           </p>
           <div class="def-rule">
-            <strong>⚡ Règle d'or :</strong> Dès que <code>Stock Disponible ≤ Min</code>, commandez immédiatement. Vos clients consommeront le stock pendant les 7 jours de livraison, et la commande arrivera pile au niveau du Stock de Sécurité.
+            <strong>⚡ Règle d'or :</strong> Dès que <code>Stock Disponible ≤ Min</code>, commandez immédiatement. La livraison arrivera pile avant d'entamer le Stock de Sécurité.
           </div>
         </div>
 
@@ -491,50 +609,28 @@
             <code>Max = Min + Lot Réassort (Ventes × P)</code>
           </div>
           <p class="def-desc">
-            <strong>Rôle :</strong> La limite supérieure à <em>ne jamais dépasser</em>. Il représente le stock cible dans votre boutique juste après la réception d'une livraison régulière.
+            <strong>Rôle :</strong> La limite supérieure à <em>ne jamais dépasser</em>. Tout stock au-dessus du Max est identifié par Hector comme <strong>Surstock</strong> à écouler.
           </p>
           <div class="def-rule">
-            <strong>💰 Règle d'or :</strong> Dépasser le Max immobilise inutilement de la trésorerie (cash bloqué), encombre vos réserves et crée du risque d'invendus ou de démarque.
+            <strong>💰 Règle d'or :</strong> Dépasser le Max immobilise inutilement de la trésorerie (cash bloqué). Utilisez l'onglet <em>Surstocks & Dormants</em> pour préparer vos Braderies.
           </div>
         </div>
 
-        <!-- Carte 4 : Lot de Réassort -->
+        <!-- Carte 4 : Analyse ABC (Loi de Pareto 80/20) -->
         <div class="def-card def-card-lot">
           <div class="def-card-top">
-            <span class="def-badge badge-lot">📦 Quantité Économique</span>
-            <h4>Lot de Réassort (Q)</h4>
+            <span class="def-badge badge-lot">🏆 Loi de Pareto (80/20)</span>
+            <h4>Classification ABC & Dormants</h4>
           </div>
           <div class="def-formula-box">
-            <code>Lot = Ventes journalières × Fréquence (P)</code>
+            <code>A: 80% CA | B: 15% CA | C: 5% CA</code>
           </div>
           <p class="def-desc">
-            <strong>Rôle :</strong> Le volume optimal à commander pour couvrir exactement la consommation entre deux révisions régulières (7 jours).
+            <strong>Rôle :</strong> Hiérarchise automatiquement vos produits selon leur contribution réelle à votre Chiffre d'Affaires.
           </p>
           <div class="def-rule">
-            <strong>📋 Règle d'or :</strong> <code>Quantité à commander = Max - Stock Réel</code> pour réaligner immédiatement votre réserve sur le plafond optimal.
+            <strong>📋 Règle d'or :</strong> Ne manquez jamais un produit <strong>Classe A</strong>, et déstockez en priorité les <strong>Stocks Dormants</strong> (0 vente sur les 2 derniers mois).
           </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Guide méthodologique intégré -->
-    <section class="methodology-section card">
-      <h3>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-        Comment Hector extrapole les ventes futures pour un nouveau commerce ?
-      </h3>
-      <div class="methodology-grid">
-        <div class="method-col">
-          <h5>1. Calcul du Rythme Réel de Base</h5>
-          <p>Hector identifie les mois réellement écoulés dans vos fichiers, cumule le "Déjà Vendu" et détermine votre rythme de vente mensuel moyen sans biaiser les calculs avec des mois vides à zéro.</p>
-        </div>
-        <div class="method-col">
-          <h5>2. Coefficients & Événements Mensuels</h5>
-          <p>Vous pouvez définir un coefficient et un événement sur chacun des 12 mois (Soldes, St-Valentin, Fête des Mères, Braderie, Black Friday $\times 1.20$, Noël $\times 1.60$…) pour ajuster finement vos extrapolations et vos stocks cibles.</p>
-        </div>
-        <div class="method-col">
-          <h5>3. Dimensionnement du Stock Min/Max</h5>
-          <p>Les seuils Min et Max anticipent la demande sur le délai de 7 jours. Dès octobre, Hector relève automatiquement le Min de novembre pour que vos approvisionnements arrivent <em>avant</em> le pic d'achat.</p>
         </div>
       </div>
     </section>
@@ -542,7 +638,7 @@
 
   <footer class="app-footer">
     <div class="footer-container">
-      <p><strong>Hector v2.4 Pro</strong> — Gestionnaire d'Approvisionnement Saisonnier & Extrapolation Prévisionnelle. 100% exécuté dans votre navigateur (aucune donnée transmise sur internet).</p>
+      <p><strong>Hector v2.5 Pro</strong> — Gestionnaire d'Approvisionnement Saisonnier, Analyse ABC & Diagnostic Surstocks. 100% exécuté et sauvegardé localement dans votre navigateur.</p>
     </div>
   </footer>
 
