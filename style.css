@@ -1330,3 +1330,218 @@ body {
   color: #dc2626;
   background: #fee2e2;
 }
+
+/* ==========================================================================
+   Grille des 12 Coefficients Mensuels & Événements Commerciaux
+   ========================================================================== */
+.monthly-coefs-panel {
+  grid-column: 1 / -1;
+  background: #f8fafc;
+  border: 1px solid var(--border-color);
+  border-top: 3px solid var(--accent);
+  border-radius: var(--radius-md);
+  padding: 1.15rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.monthly-coefs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+}
+
+.monthly-coefs-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  color: #1e293b;
+}
+
+.monthly-coefs-title svg {
+  margin-top: 0.15rem;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.monthly-coefs-title h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.monthly-coefs-sub {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 0.1rem;
+}
+
+.monthly-coefs-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.btn-coef-preset {
+  background: #ffffff;
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.7rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-coef-preset:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+}
+
+.monthly-coefs-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.65rem;
+}
+
+@media (max-width: 1150px) {
+  .monthly-coefs-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .monthly-coefs-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.month-coef-card {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.month-coef-card.coef-boost {
+  border-color: #c4b5fd;
+  background: #faf5ff;
+  box-shadow: 0 2px 5px rgba(139, 92, 246, 0.08);
+}
+
+.month-coef-card.coef-low {
+  border-color: #bae6fd;
+  background: #f0f9ff;
+}
+
+.month-coef-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.month-coef-name {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.month-coef-delta {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.1rem 0.35rem;
+  border-radius: 9999px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.delta-neutral {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.delta-up {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.delta-down {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.month-coef-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.month-coef-input {
+  width: 100%;
+  padding: 0.32rem 1.6rem 0.32rem 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  color: #0f172a;
+  border: 1px solid var(--border-dark);
+  border-radius: 4px;
+  background: #ffffff;
+}
+
+.month-coef-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.18);
+}
+
+.month-coef-suffix {
+  position: absolute;
+  right: 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.month-event-input {
+  width: 100%;
+  padding: 0.25rem 0.45rem;
+  font-size: 0.73rem;
+  color: #334155;
+  border: 1px dashed #cbd5e1;
+  border-radius: 4px;
+  background: #f8fafc;
+}
+
+.month-event-input::placeholder {
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.month-event-input:focus {
+  outline: none;
+  border-style: solid;
+  border-color: var(--primary);
+  background: #ffffff;
+}
+
+.badge-event-tag {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  margin-left: 0.35rem;
+}

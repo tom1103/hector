@@ -26,6 +26,22 @@ const MONTH_SHORT_NORMALIZED = [
   "juil", "aout", "sep", "oct", "nov", "dec"
 ];
 
+// Suggestions d'événements commerciaux par mois (placeholders)
+const MONTH_EVENT_PLACEHOLDERS = [
+  "Ex: Soldes d'hiver",
+  "Ex: Saint-Valentin",
+  "Ex: Printemps",
+  "Ex: Pâques / Braderie",
+  "Ex: Fête des Mères",
+  "Ex: Fête des Pères / Été",
+  "Ex: Soldes d'été",
+  "Ex: Vacances / Août",
+  "Ex: Braderie / Rentrée",
+  "Ex: Automne / Halloween",
+  "Ex: Black Friday",
+  "Ex: Noël / Fêtes"
+];
+
 // État global de l'application
 const HectorState = {
   products: new Map(),           // sku -> ProductData
@@ -45,8 +61,8 @@ const HectorState = {
     reviewPeriodDays: 7,
     zScore: 1.65,
     seasonalityRatioThreshold: 1.4,
-    blackFridayMultiplier: 1.20,
-    xmasMultiplier: 1.60
+    monthlyMultipliers: [1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.20, 1.60],
+    monthlyEvents: ["", "", "", "", "", "", "", "", "", "", "Black Friday", "Noël / Fêtes"]
   }
 };
 
@@ -54,6 +70,9 @@ const HectorState = {
 // 1. Initialisation & Événements DOM
 // ==========================================================================
 document.addEventListener("DOMContentLoaded", () => {
+  loadSavedMonthlyParams();
+  renderMonthlyCoefsGrid();
+  initMonthlyCoefsPresets();
   initDropzone();
   initParamListeners();
   initActionButtons();
@@ -62,6 +81,157 @@ document.addEventListener("DOMContentLoaded", () => {
   initSearch();
   initSorting();
 });
+
+function loadSavedMonthlyParams() {
+  try {
+    const raw = localStorage.getItem("hector_monthly_params_v24");
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed.monthlyMultipliers) && parsed.monthlyMultipliers.length === 12) {
+      HectorState.params.monthlyMultipliers = parsed.monthlyMultipliers.map(v => {
+        const num = parseFloat(v);
+        return (!isNaN(num) && num >= 0.1 && num <= 10) ? num : 1.0;
+      });
+    }
+    if (Array.isArray(parsed.monthlyEvents) && parsed.monthlyEvents.length === 12) {
+      HectorState.params.monthlyEvents = parsed.monthlyEvents.map(s => String(s || ""));
+    }
+  } catch (e) {
+    // Ignore localStorage errors
+  }
+}
+
+function saveMonthlyParams() {
+  try {
+    localStorage.setItem("hector_monthly_params_v24", JSON.stringify({
+      monthlyMultipliers: HectorState.params.monthlyMultipliers,
+      monthlyEvents: HectorState.params.monthlyEvents
+    }));
+  } catch (e) {}
+}
+
+function formatCoefDeltaBadge(val) {
+  const diffPct = Math.round((val - 1.0) * 100);
+  if (diffPct > 0) {
+    return { text: `+${diffPct}%`, cls: "delta-up", cardCls: "coef-boost" };
+  } else if (diffPct < 0) {
+    return { text: `${diffPct}%`, cls: "delta-down", cardCls: "coef-low" };
+  }
+  return { text: "Base", cls: "delta-neutral", cardCls: "" };
+}
+
+function renderMonthlyCoefsGrid() {
+  const grid = document.getElementById("monthly-coefs-grid");
+  if (!grid) return;
+  grid.innerHTML = "";
+
+  for (let m = 0; m < 12; m++) {
+    const mult = HectorState.params.monthlyMultipliers[m];
+    const evt = HectorState.params.monthlyEvents[m] || "";
+    const badge = formatCoefDeltaBadge(mult);
+
+    const card = document.createElement("div");
+    card.className = `month-coef-card ${badge.cardCls}`.trim();
+    card.setAttribute("data-month-card", m);
+
+    card.innerHTML = `
+      <div class="month-coef-top">
+        <span class="month-coef-name">${MONTH_NAMES[m]}</span>
+        <span class="month-coef-delta ${badge.cls}" data-month-delta="${m}">${badge.text}</span>
+      </div>
+      <div class="month-coef-input-wrap">
+        <input type="number" class="month-coef-input" data-month-coef="${m}" value="${mult.toFixed(2)}" step="0.05" min="0.10" max="10.00">
+        <span class="month-coef-suffix">×</span>
+      </div>
+      <input type="text" class="month-event-input" data-month-event="${m}" value="${evt.replace(/"/g, '&quot;')}" placeholder="${MONTH_EVENT_PLACEHOLDERS[m]}">
+    `;
+
+    grid.appendChild(card);
+  }
+
+  // Écouteurs sur les 12 coefficients mensuels
+  grid.querySelectorAll(".month-coef-input").forEach(inputEl => {
+    inputEl.addEventListener("input", () => {
+      const m = parseInt(inputEl.getAttribute("data-month-coef"), 10);
+      const val = Math.max(0.1, Math.min(10, parseFloat(String(inputEl.value).replace(",", ".")) || 1.0));
+      HectorState.params.monthlyMultipliers[m] = val;
+
+      // Mise à jour visuelle immédiate du badge et de la carte
+      const badge = formatCoefDeltaBadge(val);
+      const deltaEl = grid.querySelector(`[data-month-delta="${m}"]`);
+      const cardEl = grid.querySelector(`[data-month-card="${m}"]`);
+      if (deltaEl) {
+        deltaEl.textContent = badge.text;
+        deltaEl.className = `month-coef-delta ${badge.cls}`;
+      }
+      if (cardEl) {
+        cardEl.className = `month-coef-card ${badge.cardCls}`.trim();
+      }
+
+      saveMonthlyParams();
+      if (HectorState.products.size > 0) recalculateAll();
+    });
+  });
+
+  // Écouteurs sur les 12 libellés d'événements
+  grid.querySelectorAll(".month-event-input").forEach(evtEl => {
+    evtEl.addEventListener("input", () => {
+      const m = parseInt(evtEl.getAttribute("data-month-event"), 10);
+      HectorState.params.monthlyEvents[m] = evtEl.value.trim();
+      saveMonthlyParams();
+      if (HectorState.products.size > 0) recalculateAll();
+    });
+  });
+}
+
+function initMonthlyCoefsPresets() {
+  const btnStd = document.getElementById("btn-preset-standard");
+  const btnRetail = document.getElementById("btn-preset-retail");
+  const btnNeutral = document.getElementById("btn-preset-neutral");
+
+  if (btnStd) {
+    btnStd.addEventListener("click", () => {
+      HectorState.params.monthlyMultipliers = [1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.20, 1.60];
+      HectorState.params.monthlyEvents = ["", "", "", "", "", "", "", "", "", "", "Black Friday", "Noël / Fêtes"];
+      saveMonthlyParams();
+      renderMonthlyCoefsGrid();
+      if (HectorState.products.size > 0) recalculateAll();
+    });
+  }
+
+  if (btnRetail) {
+    btnRetail.addEventListener("click", () => {
+      HectorState.params.monthlyMultipliers = [1.15, 1.20, 1.00, 1.05, 1.25, 1.10, 1.15, 0.90, 1.20, 1.05, 1.20, 1.60];
+      HectorState.params.monthlyEvents = [
+        "Soldes d'hiver",
+        "Saint-Valentin",
+        "",
+        "Pâques",
+        "Fête des Mères",
+        "Fête des Pères",
+        "Soldes d'été",
+        "Creux Août",
+        "Braderie / Rentrée",
+        "Automne",
+        "Black Friday",
+        "Noël / Fêtes"
+      ];
+      saveMonthlyParams();
+      renderMonthlyCoefsGrid();
+      if (HectorState.products.size > 0) recalculateAll();
+    });
+  }
+
+  if (btnNeutral) {
+    btnNeutral.addEventListener("click", () => {
+      HectorState.params.monthlyMultipliers = new Array(12).fill(1.00);
+      HectorState.params.monthlyEvents = new Array(12).fill("");
+      saveMonthlyParams();
+      renderMonthlyCoefsGrid();
+      if (HectorState.products.size > 0) recalculateAll();
+    });
+  }
+}
 
 function initParamListeners() {
   document.getElementById("btn-recalculate").addEventListener("click", () => {
@@ -75,15 +245,29 @@ function updateParamsFromUI() {
   const reviewInput = document.getElementById("param-review-period");
   const zScoreSelect = document.getElementById("param-service-level");
   const seasonSelect = document.getElementById("param-seasonality-threshold");
-  const bfInput = document.getElementById("param-bf-multiplier");
-  const xmasInput = document.getElementById("param-xmas-multiplier");
 
   HectorState.params.leadTimeDays = Math.max(1, parseInt(leadTimeInput.value, 10) || 7);
   HectorState.params.reviewPeriodDays = Math.max(1, parseInt(reviewInput.value, 10) || 7);
   HectorState.params.zScore = parseFloat(zScoreSelect.value) || 1.65;
   HectorState.params.seasonalityRatioThreshold = parseFloat(seasonSelect.value) || 1.4;
-  HectorState.params.blackFridayMultiplier = Math.max(0.1, parseFloat(bfInput.value) || 1.20);
-  HectorState.params.xmasMultiplier = Math.max(0.1, parseFloat(xmasInput.value) || 1.60);
+
+  // Lecture des 12 coefficients et événements depuis la grille
+  document.querySelectorAll(".month-coef-input").forEach(inputEl => {
+    const m = parseInt(inputEl.getAttribute("data-month-coef"), 10);
+    const val = parseFloat(String(inputEl.value).replace(",", "."));
+    if (!isNaN(m) && m >= 0 && m < 12) {
+      HectorState.params.monthlyMultipliers[m] = (!isNaN(val) && val >= 0.1 && val <= 10) ? val : 1.0;
+    }
+  });
+
+  document.querySelectorAll(".month-event-input").forEach(evtEl => {
+    const m = parseInt(evtEl.getAttribute("data-month-event"), 10);
+    if (!isNaN(m) && m >= 0 && m < 12) {
+      HectorState.params.monthlyEvents[m] = evtEl.value.trim();
+    }
+  });
+
+  saveMonthlyParams();
 }
 
 function initActionButtons() {
@@ -1009,20 +1193,20 @@ function calculateProductStockParameters(product, params) {
   // Rythme mensuel de base : moyenne sur les mois observés de la boutique
   const baseMonthlyRate = observedCount > 0 ? (actualTotal / observedCount) : 0;
 
-  // 2. Extrapolation sur les mois futurs non observés
+  // 2. Application des coefficients mensuels (Extrapolation sur les mois futurs + modulation éventuelle)
   const fullYearDemand = new Array(12);
   let forecastTotal = 0;
 
   for (let m = 0; m < 12; m++) {
+    const multiplier = (params.monthlyMultipliers && params.monthlyMultipliers[m] !== undefined)
+      ? params.monthlyMultipliers[m]
+      : 1.0;
+
     if (observedMonths.has(m)) {
-      fullYearDemand[m] = rawDemand[m];
+      // Si l'utilisateur applique un coefficient != 1.0 sur un mois déjà observé (ex: simuler une Braderie),
+      // on ajuste la cible de demande du mois tout en préservant actualTotal (ventes historiques brutes)
+      fullYearDemand[m] = Math.round(rawDemand[m] * multiplier);
     } else {
-      let multiplier = 1.0;
-      if (m === 10) {
-        multiplier = params.blackFridayMultiplier; // Novembre (Black Friday)
-      } else if (m === 11) {
-        multiplier = params.xmasMultiplier;        // Décembre (Noël / Fêtes)
-      }
       const extrapolated = Math.round(baseMonthlyRate * multiplier);
       fullYearDemand[m] = extrapolated;
       forecastTotal += extrapolated;
@@ -1054,6 +1238,10 @@ function calculateProductStockParameters(product, params) {
   for (let m = 0; m < 12; m++) {
     const currentMonthDemand = fullYearDemand[m];
     const isObserved = observedMonths.has(m);
+    const monthMultiplier = (params.monthlyMultipliers && params.monthlyMultipliers[m] !== undefined)
+      ? params.monthlyMultipliers[m]
+      : 1.0;
+    const monthEvent = (params.monthlyEvents && params.monthlyEvents[m]) ? params.monthlyEvents[m] : "";
     const dailyDemand = currentMonthDemand / 30;
 
     // Projection glissante sur le délai fournisseur L (anticipe le mois suivant)
@@ -1100,7 +1288,10 @@ function calculateProductStockParameters(product, params) {
       monthName: MONTH_NAMES[m],
       displayMonthName: displayMonthName,
       demand: Math.round(currentMonthDemand),
+      rawHistoricalDemand: Math.round(rawDemand[m]),
       isObserved: isObserved,
+      monthMultiplier: monthMultiplier,
+      monthEvent: monthEvent,
       natureLabel: isObserved ? '🟢 Déjà Vendu' : '🔮 Prévision Extrapolée',
       seasonalIndex: parseFloat(seasonalIndices[m].toFixed(2)),
       leadTimeDemand: Math.round(leadTimeDemand),
@@ -1402,7 +1593,8 @@ function renderStockChart(prod) {
             afterTitle: (items) => {
               const idx = items[0].dataIndex;
               const calc = orderedCalcs[idx];
-              return calc.isObserved ? '🟢 Ventes Réelles Constatées (Historique)' : '🔮 Prévision Extrapolée (Futur)';
+              const evtInfo = calc.monthEvent ? ` • 🎉 ${calc.monthEvent} (×${calc.monthMultiplier.toFixed(2)})` : (calc.monthMultiplier !== 1 ? ` • Coeff ×${calc.monthMultiplier.toFixed(2)}` : '');
+              return (calc.isObserved ? '🟢 Ventes Réelles Constatées' : '🔮 Prévision Extrapolée') + evtInfo;
             }
           }
         }
@@ -1442,9 +1634,20 @@ function renderProductMonthlyTable(prod) {
       ? '<span class="badge-actual">🟢 Déjà Vendu (Réel)</span>'
       : '<span class="badge-forecast">🔮 Prévision Extrapolée</span>';
 
+    const eventTagHtml = calc.monthEvent
+      ? `<span class="badge-event-tag">🎉 ${calc.monthEvent}</span>`
+      : '';
+
+    const diffPct = Math.round((calc.monthMultiplier - 1.0) * 100);
+    const coefBadgeStyle = diffPct > 0
+      ? 'color: #6d28d9; font-weight: 700;'
+      : (diffPct < 0 ? 'color: #0369a1; font-weight: 700;' : 'color: #64748b;');
+    const coefSub = diffPct !== 0 ? ` <small>(${diffPct > 0 ? '+' : ''}${diffPct}%)</small>` : '';
+
     tr.innerHTML = `
       <td><strong>${calc.displayMonthName}</strong></td>
-      <td>${badgeNature}</td>
+      <td>${badgeNature}${eventTagHtml}</td>
+      <td style="${coefBadgeStyle}">×${calc.monthMultiplier.toFixed(2)}${coefSub}</td>
       <td><strong>${calc.demand.toLocaleString("fr-FR")} u.</strong></td>
       <td>${calc.seasonalIndex.toFixed(2)}</td>
       <td>${calc.leadTimeDemand.toLocaleString("fr-FR")}</td>
@@ -1519,12 +1722,17 @@ function renderMonthChips() {
   chronoOrder.forEach((m) => {
     const name = MONTH_NAMES[m];
     const isObs = HectorState.globalObservedMonths.has(m);
+    const mult = HectorState.params.monthlyMultipliers[m] !== undefined ? HectorState.params.monthlyMultipliers[m] : 1.0;
+    const evt = HectorState.params.monthlyEvents[m] || "";
     const chip = document.createElement("div");
     chip.className = `month-chip ${m === HectorState.selectedMonth ? 'active' : ''}`;
 
     let badgeText = isObs ? "🟢 Réel" : "🔮 Prév.";
-    if (m === 10) badgeText = "🔥 Black Friday";
-    else if (m === 11) badgeText = "🎄 Noël / Fêtes";
+    if (evt) {
+      badgeText = `🎉 ${evt} (×${mult.toFixed(2)})`;
+    } else if (mult !== 1.0) {
+      badgeText = `${isObs ? '🟢' : '🔮'} ×${mult.toFixed(2)}`;
+    }
 
     chip.innerHTML = `
       <span class="month-chip-name">${name}</span>
@@ -1788,8 +1996,8 @@ function exportResultsToExcel() {
 
   const monthlyRows = [
     [
-      "Référence Produit", "Classification", "Mois", "Nature des Données", "Ventes (Réel/Prévu)",
-      "Coeff. Saison (CS)", "Demande sur Délai L", "Stock Sécurité (SS)",
+      "Référence Produit", "Classification", "Mois", "Nature des Données", "Événement Commercial", "Coeff. Mois",
+      "Ventes (Réel/Prévu)", "Coeff. Saison (CS)", "Demande sur Délai L", "Stock Sécurité (SS)",
       "Stock MIN (Point Commande)", "Stock MAX (Plafond)", "Lot Réassort Conseillé"
     ]
   ];
@@ -1802,6 +2010,8 @@ function exportResultsToExcel() {
         p.isSeasonal ? "Saisonnier" : "Stable",
         c.displayMonthName,
         c.isObserved ? "Réel Constaté" : "Prévision Extrapolée",
+        c.monthEvent || "",
+        c.monthMultiplier,
         c.demand,
         c.seasonalIndex,
         c.leadTimeDemand,
@@ -1824,7 +2034,7 @@ function exportResultsToCSV() {
 
   const chronoOrder = getChronologicalMonthOrder(HectorState.globalObservedMonths);
   const lines = [
-    "Référence Produit;Classification;Mois;Nature Données;Ventes;Coeff Saison;Demande Délai;Stock Sécurité;Stock MIN;Stock MAX;Lot Réassort"
+    "Référence Produit;Classification;Mois;Nature Données;Événement;Coeff Mois;Ventes;Coeff Saison;Demande Délai;Stock Sécurité;Stock MIN;Stock MAX;Lot Réassort"
   ];
 
   HectorState.products.forEach(p => {
@@ -1835,6 +2045,8 @@ function exportResultsToCSV() {
         p.isSeasonal ? "Saisonnier" : "Stable",
         c.displayMonthName,
         c.isObserved ? "Réel Constaté" : "Prévision Extrapolée",
+        `"${(c.monthEvent || "").replace(/"/g, '""')}"`,
+        c.monthMultiplier,
         c.demand,
         c.seasonalIndex,
         c.leadTimeDemand,
@@ -1857,8 +2069,8 @@ function exportSelectedMonthToExcel() {
 
   const rows = [
     [
-      "Référence Produit", "Classification", "Nature Données", "Phase Saison", `Ventes ${monthName}`,
-      "Coeff. Saison (CS)", "Demande sur Délai L", "Stock Sécurité (SS)",
+      "Référence Produit", "Classification", "Nature Données", "Événement Commercial", "Coeff. Mois",
+      "Phase Saison", `Ventes ${monthName}`, "Coeff. Saison (CS)", "Demande sur Délai L", "Stock Sécurité (SS)",
       "Stock MIN (Point Commande)", "Stock MAX (Plafond)", "Lot Réassort"
     ]
   ];
@@ -1869,6 +2081,8 @@ function exportSelectedMonthToExcel() {
       p.sku,
       p.isSeasonal ? "Saisonnier" : "Stable",
       c.isObserved ? "Réel Constaté" : "Prévision Extrapolée",
+      c.monthEvent || "",
+      c.monthMultiplier,
       c.phase === 'peak' ? 'Pic de Saison' : (c.phase === 'low' ? 'Creux' : 'Normal'),
       c.demand,
       c.seasonalIndex,
@@ -1892,7 +2106,7 @@ function exportSelectedMonthToCSV() {
   const monthName = MONTH_NAMES[m];
 
   const lines = [
-    `Référence Produit;Classification;Nature Données;Phase Saison;Ventes ${monthName};Coeff Saison;Demande Délai;Stock Sécurité;Stock MIN;Stock MAX;Lot Réassort`
+    `Référence Produit;Classification;Nature Données;Événement;Coeff Mois;Phase Saison;Ventes ${monthName};Coeff Saison;Demande Délai;Stock Sécurité;Stock MIN;Stock MAX;Lot Réassort`
   ];
 
   HectorState.products.forEach(p => {
@@ -1901,6 +2115,8 @@ function exportSelectedMonthToCSV() {
       `"${p.sku.replace(/"/g, '""')}"`,
       p.isSeasonal ? "Saisonnier" : "Stable",
       c.isObserved ? "Réel Constaté" : "Prévision Extrapolée",
+      `"${(c.monthEvent || "").replace(/"/g, '""')}"`,
+      c.monthMultiplier,
       c.phase === 'peak' ? 'Pic de Saison' : (c.phase === 'low' ? 'Creux' : 'Normal'),
       c.demand,
       c.seasonalIndex,

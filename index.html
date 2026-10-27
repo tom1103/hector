@@ -26,7 +26,7 @@
         <div class="brand-text">
           <div class="brand-title-row">
             <h1>HECTOR</h1>
-            <span class="brand-version">v2.2 Pro</span>
+            <span class="brand-version">v2.4 Pro</span>
           </div>
           <span class="brand-tag">Optimiseur de Stock, Ventes Passées & Prévisions Saisonnières</span>
         </div>
@@ -87,7 +87,7 @@
       <div class="settings-panel">
         <div class="settings-header">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          <h4>Politique de Réassort & Facteurs Saisonniers</h4>
+          <h4>Politique de Réassort & Niveau de Service</h4>
         </div>
         <div class="settings-grid">
           <div class="setting-item">
@@ -109,28 +109,6 @@
             <div class="input-with-suffix">
               <input type="number" id="param-review-period" value="7" min="1" max="180">
               <span>j</span>
-            </div>
-          </div>
-
-          <div class="setting-item">
-            <label for="param-bf-multiplier">
-              Black Friday (Novembre)
-              <span class="tooltip-icon" title="Coefficient d'extrapolation pour le mois de novembre (ex: 1.20 = +20% de ventes)">?</span>
-            </label>
-            <div class="input-with-suffix">
-              <input type="number" id="param-bf-multiplier" value="1.20" step="0.05" min="0.5" max="5.0">
-              <span>×</span>
-            </div>
-          </div>
-
-          <div class="setting-item">
-            <label for="param-xmas-multiplier">
-              Fêtes / Noël (Décembre)
-              <span class="tooltip-icon" title="Coefficient d'extrapolation pour le mois de décembre (ex: 1.60 = +60% de ventes)">?</span>
-            </label>
-            <div class="input-with-suffix">
-              <input type="number" id="param-xmas-multiplier" value="1.60" step="0.05" min="0.5" max="5.0">
-              <span>×</span>
             </div>
           </div>
 
@@ -166,6 +144,34 @@
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
             Recalculer & Actualiser les Extrapolations
           </button>
+        </div>
+      </div>
+
+      <!-- Grille des 12 Coefficients Mensuels & Événements Commerciaux -->
+      <div class="monthly-coefs-panel">
+        <div class="monthly-coefs-header">
+          <div class="monthly-coefs-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <div>
+              <h4>Coefficients Mensuels & Événements Commerciaux (Janvier à Décembre)</h4>
+              <p class="monthly-coefs-sub">Personnalisez le multiplicateur et l'événement de chaque mois (Soldes, St-Valentin, Braderie, Fête des Mères, Black Friday, Noël…).</p>
+            </div>
+          </div>
+          <div class="monthly-coefs-presets">
+            <button type="button" id="btn-preset-standard" class="btn-coef-preset" title="Novembre Black Friday ×1.20, Décembre Noël ×1.60, autres mois ×1.00">
+              🎯 Standard (BF ×1.2 / Noël ×1.6)
+            </button>
+            <button type="button" id="btn-preset-retail" class="btn-coef-preset" title="Pré-remplir avec Soldes, St-Valentin, Fête des Mères, Braderie, Black Friday et Noël">
+              🛍️ Calendrier Commerce Complet
+            </button>
+            <button type="button" id="btn-preset-neutral" class="btn-coef-preset" title="Remettre les 12 mois à 1.00×">
+              ↺ Neutre (Tout à 1.0×)
+            </button>
+          </div>
+        </div>
+
+        <div id="monthly-coefs-grid" class="monthly-coefs-grid">
+          <!-- Généré dynamiquement en JS pour les 12 mois (Janvier..Décembre) -->
         </div>
       </div>
     </section>
@@ -286,7 +292,8 @@
               <thead>
                 <tr>
                   <th>Mois</th>
-                  <th>Nature des Données</th>
+                  <th>Nature & Événement</th>
+                  <th>Coeff. Mois</th>
                   <th>Ventes (Réelles / Prévues)</th>
                   <th>Coeff. Saison (CS)</th>
                   <th>Demande Délai (L=7j)</th>
@@ -522,8 +529,8 @@
           <p>Hector identifie les mois réellement écoulés dans vos fichiers, cumule le "Déjà Vendu" et détermine votre rythme de vente mensuel moyen sans biaiser les calculs avec des mois vides à zéro.</p>
         </div>
         <div class="method-col">
-          <h5>2. Extrapolation Saisonnière Intelligente</h5>
-          <p>Pour les mois à venir (non encore vécus), Hector applique vos coefficients d'extrapolation configurés : Black Friday en Novembre ($\times 1.20$ soit $+20\%$) et Noël / Fêtes en Décembre ($\times 1.60$ soit $+60\%$).</p>
+          <h5>2. Coefficients & Événements Mensuels</h5>
+          <p>Vous pouvez définir un coefficient et un événement sur chacun des 12 mois (Soldes, St-Valentin, Fête des Mères, Braderie, Black Friday $\times 1.20$, Noël $\times 1.60$…) pour ajuster finement vos extrapolations et vos stocks cibles.</p>
         </div>
         <div class="method-col">
           <h5>3. Dimensionnement du Stock Min/Max</h5>
@@ -535,7 +542,7 @@
 
   <footer class="app-footer">
     <div class="footer-container">
-      <p><strong>Hector v2.2 Pro</strong> — Gestionnaire d'Approvisionnement Saisonnier & Extrapolation Prévisionnelle. 100% exécuté dans votre navigateur (aucune donnée transmise sur internet).</p>
+      <p><strong>Hector v2.4 Pro</strong> — Gestionnaire d'Approvisionnement Saisonnier & Extrapolation Prévisionnelle. 100% exécuté dans votre navigateur (aucune donnée transmise sur internet).</p>
     </div>
   </footer>
 
